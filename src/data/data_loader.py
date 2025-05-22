@@ -25,13 +25,23 @@ from src.config.constants import (
 
 def load_raw_data():
     """
-    Carga los datos crudos desde el archivo Excel.
+    Carga los datos crudos desde el archivo de origen (CSV o Excel).
     
     Returns:
         pandas.DataFrame: DataFrame con los datos crudos.
     """
     try:
-        df = pd.read_excel(RAW_DATA_FILE) # Cambiado a read_excel
+        # Determinar la extensión del archivo
+        file_extension = str(RAW_DATA_FILE).lower().split('.')[-1]
+        
+        if file_extension == 'csv':
+            df = pd.read_csv(RAW_DATA_FILE)
+        elif file_extension in ['xlsx', 'xls']:
+            df = pd.read_excel(RAW_DATA_FILE)
+        else:
+            print(f"Formato de archivo no soportado: {file_extension}")
+            return None
+            
         print(f"Datos cargados exitosamente desde {RAW_DATA_FILE}. Dimensiones: {df.shape}")
         return df
     except Exception as e:

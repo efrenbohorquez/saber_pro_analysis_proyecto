@@ -21,7 +21,7 @@ os.makedirs(FIGURES_DIR, exist_ok=True)
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
 # Archivos de datos
-RAW_DATA_FILE = "C:\\\\Users\\\\efren\\\\Desktop\\\\Resultados_Saber_Pro_limpios.xlsx" # Actualizado a la nueva ruta y archivo
+RAW_DATA_FILE = RAW_DATA_DIR / "dataset_dividido_10.csv" # Actualizado para usar el conjunto de datos más pequeño
 PROCESSED_DATA_FILE = PROCESSED_DATA_DIR / "saber_pro_processed_data.csv"
 GEOCODED_DATA_FILE = PROCESSED_DATA_DIR / "resultados_geocoded.csv"
 
