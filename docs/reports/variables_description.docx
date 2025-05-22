@@ -1,0 +1,88 @@
+GLOSARIO DE VARIABLES UTILIZADAS EN EL ANÁLISIS
+
+Este documento presenta una descripción detallada de las variables utilizadas en el análisis multivariante de la relación entre nivel socioeconómico y rendimiento académico en las Pruebas Saber Pro.
+
+1. VARIABLES DE IDENTIFICACIÓN
+
+PERIODO: Periodo académico en el que se presentó la prueba, en formato YYYYN donde N es el número del periodo.
+ESTU_CONSECUTIVO: Identificador único del estudiante.
+ESTU_TIPODOCUMENTO: Tipo de documento de identidad del estudiante (CC: Cédula de Ciudadanía, TI: Tarjeta de Identidad, etc.).
+
+2. VARIABLES GEOGRÁFICAS
+
+ESTU_DEPTO_RESIDE: Departamento de residencia del estudiante.
+ESTU_MCPIO_RESIDE: Municipio de residencia del estudiante.
+ESTU_INST_DEPARTAMENTO: Departamento donde se ubica la institución educativa.
+ESTU_INST_MUNICIPIO: Municipio donde se ubica la institución educativa.
+ESTU_PRGM_DEPARTAMENTO: Departamento donde se ofrece el programa académico.
+ESTU_PRGM_MUNICIPIO: Municipio donde se ofrece el programa académico.
+ESTU_DEPTO_PRESENTACION: Departamento donde el estudiante presentó la prueba.
+ESTU_MCPIO_PRESENTACION: Municipio donde el estudiante presentó la prueba.
+
+3. VARIABLES INSTITUCIONALES
+
+INST_NOMBRE_INSTITUCION: Nombre de la institución de educación superior.
+INST_CARACTER_ACADEMICO: Carácter académico de la institución (Universidad, Institución Universitaria, etc.).
+INST_ORIGEN: Origen de la institución (Oficial Nacional, Oficial Departamental, No Oficial - Fundación, etc.).
+ESTU_PRGM_ACADEMICO: Nombre del programa académico que cursa el estudiante.
+ESTU_NUCLEO_PREGRADO: Área de conocimiento del programa académico.
+ESTU_NIVEL_PRGM_ACADEMICO: Nivel del programa académico (Universitario, Técnico, Tecnológico).
+ESTU_METODO_PRGM: Metodología del programa (Presencial, Distancia, Virtual).
+
+4. VARIABLES SOCIOECONÓMICAS
+
+FAMI_ESTRATOVIVIENDA: Estrato socioeconómico de la vivienda del estudiante (Estrato 1 a Estrato 6).
+FAMI_TIENECOMPUTADOR: Indica si la familia del estudiante posee computador (1: Sí, 0: No).
+FAMI_TIENEINTERNET: Indica si la familia del estudiante tiene acceso a internet (1: Sí, 0: No).
+FAMI_TIENELAVADORA: Indica si la familia del estudiante posee lavadora (1: Sí, 0: No).
+FAMI_TIENEAUTOMOVIL: Indica si la familia del estudiante posee automóvil (1: Sí, 0: No).
+FAMI_EDUCACIONPADRE: Nivel educativo alcanzado por el padre del estudiante.
+FAMI_EDUCACIONMADRE: Nivel educativo alcanzado por la madre del estudiante.
+ESTU_HORASSEMANATRABAJA_NUM: Número de horas semanales que trabaja el estudiante.
+ESTU_VALORMATRICULAUNIVERSIDAD: Valor de la matrícula universitaria por rangos.
+ESTU_PAGOMATRICULABECA: Indica si el estudiante paga la matrícula con beca (1: Sí, 0: No).
+ESTU_PAGOMATRICULACREDITO: Indica si el estudiante paga la matrícula con crédito (1: Sí, 0: No).
+ESTU_PAGOMATRICULAPADRES: Indica si los padres pagan la matrícula del estudiante (1: Sí, 0: No).
+ESTU_PAGOMATRICULAPROPIO: Indica si el estudiante paga su propia matrícula (1: Sí, 0: No).
+
+5. VARIABLES DEMOGRÁFICAS
+
+ESTU_GENERO: Género del estudiante (F: Femenino, M: Masculino).
+ESTU_FECHANACIMIENTO: Fecha de nacimiento del estudiante.
+EDAD: Edad calculada del estudiante al momento de presentar la prueba.
+
+6. VARIABLES DE RENDIMIENTO ACADÉMICO
+
+MOD_RAZONA_CUANTITAT_PUNT: Puntaje obtenido en el módulo de razonamiento cuantitativo.
+MOD_COMUNI_ESCRITA_PUNT: Puntaje obtenido en el módulo de comunicación escrita.
+MOD_COMUNI_ESCRITA_DESEM: Nivel de desempeño en comunicación escrita (1 a 3).
+MOD_INGLES_PUNT: Puntaje obtenido en el módulo de inglés.
+MOD_INGLES_DESEM: Nivel de desempeño en inglés (A-, A1, A2, B1, B+, B2).
+MOD_LECTURA_CRITICA_PUNT: Puntaje obtenido en el módulo de lectura crítica.
+MOD_COMPETEN_CIUDADA_PUNT: Puntaje obtenido en el módulo de competencias ciudadanas.
+
+7. VARIABLES DERIVADAS
+
+NSE_SCORE: Puntaje compuesto de nivel socioeconómico, calculado a partir de variables socioeconómicas.
+NSE_NIVEL: Nivel socioeconómico categorizado en 5 niveles (Muy bajo, Bajo, Medio, Alto, Muy alto).
+RA_SCORE: Puntaje compuesto de rendimiento académico, calculado como promedio de puntajes normalizados.
+RA_NIVEL: Nivel de rendimiento académico categorizado en 5 niveles (Muy bajo, Bajo, Medio, Alto, Muy alto).
+ESTRATO_NUM: Versión numérica del estrato socioeconómico.
+FAMI_EDUCACIONPADRE_NIVEL: Nivel educativo del padre codificado numéricamente.
+FAMI_EDUCACIONMADRE_NIVEL: Nivel educativo de la madre codificado numéricamente.
+MOD_INGLES_NIVEL: Nivel de inglés codificado numéricamente.
+
+8. VARIABLES DE ANÁLISIS MULTIVARIADO
+
+PCA_ACADEMIC_1, PCA_ACADEMIC_2, ...: Coordenadas de las observaciones en los componentes principales del ACP.
+MCA_SOCIOECONOMIC_1, MCA_SOCIOECONOMIC_2, ...: Coordenadas de las observaciones en las dimensiones del ACM.
+CLUSTER: Etiqueta del cluster asignado a cada observación en el análisis de clustering jerárquico.
+
+9. VARIABLES GEOESPACIALES
+
+LATITUD_RESIDE: Latitud aproximada del departamento de residencia del estudiante.
+LONGITUD_RESIDE: Longitud aproximada del departamento de residencia del estudiante.
+LATITUD_INST: Latitud aproximada del departamento de la institución educativa.
+LONGITUD_INST: Longitud aproximada del departamento de la institución educativa.
+
+Este glosario proporciona una referencia rápida para la interpretación de las variables utilizadas en el análisis. Para detalles sobre la construcción de variables derivadas o transformaciones aplicadas, consulte la documentación metodológica completa.

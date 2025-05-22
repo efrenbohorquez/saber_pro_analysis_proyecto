@@ -1,0 +1,171 @@
+EXPLICACIÓN PEDAGÓGICA DE TÉCNICAS ESTADÍSTICAS MULTIVARIANTES
+
+Este documento proporciona una explicación detallada de los fundamentos teóricos, aplicación práctica e interpretación de resultados de las técnicas estadísticas multivariantes empleadas en el análisis de la relación entre nivel socioeconómico y rendimiento académico en las Pruebas Saber Pro.
+
+1. ANÁLISIS DE COMPONENTES PRINCIPALES (ACP)
+
+Fundamentos teóricos:
+El Análisis de Componentes Principales (ACP) es una técnica de reducción de dimensionalidad que transforma un conjunto de variables correlacionadas en un conjunto menor de variables no correlacionadas llamadas componentes principales. Estos componentes son combinaciones lineales de las variables originales y se ordenan de manera que los primeros componentes retienen la mayor parte de la variación presente en todas las variables originales.
+
+Matemáticamente, el ACP se basa en la descomposición espectral de la matriz de covarianza o correlación de las variables originales. Si X es la matriz de datos centrada (con media cero), entonces la matriz de covarianza S = X'X/(n-1). Los componentes principales son los vectores propios de esta matriz, y la varianza explicada por cada componente corresponde a los valores propios asociados.
+
+Aplicación práctica:
+En nuestro análisis, aplicamos ACP a las variables de rendimiento académico (puntajes en los diferentes módulos de la prueba) para:
+1. Reducir la dimensionalidad de los datos, pasando de múltiples puntajes a un conjunto menor de componentes.
+2. Identificar patrones subyacentes en el rendimiento académico.
+3. Eliminar la multicolinealidad entre variables para análisis posteriores.
+
+El procedimiento incluyó:
+- Estandarización de variables (media 0, desviación estándar 1)
+- Cálculo de la matriz de correlación
+- Extracción de componentes principales
+- Determinación del número óptimo de componentes mediante el criterio del 80% de varianza explicada y el gráfico de sedimentación
+
+Interpretación de resultados:
+Los resultados del ACP se interpretan examinando:
+- La proporción de varianza explicada por cada componente
+- Las cargas factoriales (correlaciones entre variables originales y componentes)
+- Las puntuaciones de los componentes para cada observación
+
+En nuestro análisis, el primer componente representa un "factor general de rendimiento académico", con cargas positivas en todos los módulos, explicando aproximadamente el 45% de la varianza total. El segundo componente contrasta habilidades cuantitativas con habilidades comunicativas, explicando un 18% adicional de varianza. El tercer componente se relaciona principalmente con el dominio del inglés, aportando un 12% más de varianza explicada.
+
+2. ANÁLISIS DE CORRESPONDENCIAS MÚLTIPLES (ACM)
+
+Fundamentos teóricos:
+El Análisis de Correspondencias Múltiples (ACM) es una extensión del análisis de correspondencias simple que permite estudiar la asociación entre múltiples variables categóricas. El ACM representa las categorías de las variables como puntos en un espacio de baja dimensión, de manera que categorías con perfiles similares se ubican cerca entre sí.
+
+El ACM se basa en la descomposición en valores singulares de la matriz de Burt (que contiene todas las tablas de contingencia cruzadas entre pares de variables) o de la matriz indicadora (que representa cada categoría como una variable dummy). La inercia total se descompone en dimensiones ortogonales, donde las primeras dimensiones capturan la mayor parte de la asociación entre variables.
+
+Aplicación práctica:
+En nuestro estudio, aplicamos ACM a las variables socioeconómicas categóricas para:
+1. Visualizar asociaciones entre diferentes aspectos del nivel socioeconómico
+2. Identificar patrones de asociación entre categorías de diferentes variables
+3. Proyectar individuos en un espacio reducido basado en sus características socioeconómicas
+
+El procedimiento incluyó:
+- Selección de variables categóricas relevantes
+- Transformación de variables numéricas a categóricas mediante discretización
+- Cálculo de la matriz de Burt
+- Extracción de dimensiones principales
+- Cálculo de coordenadas para categorías e individuos
+
+Interpretación de resultados:
+Los resultados del ACM se interpretan analizando:
+- La inercia explicada por cada dimensión
+- La posición relativa de las categorías en el mapa factorial
+- La contribución de cada categoría a la definición de las dimensiones
+- La proyección de los individuos en el espacio factorial
+
+En nuestro análisis, la primera dimensión (eje horizontal) representa principalmente el nivel socioeconómico, con estratos altos, educación superior de los padres y posesión de bienes ubicados a la derecha, y sus opuestos a la izquierda. La segunda dimensión (eje vertical) captura principalmente diferencias en patrones de financiación educativa y situación laboral del estudiante.
+
+3. CLUSTERING JERÁRQUICO
+
+Fundamentos teóricos:
+El Clustering Jerárquico es una técnica de agrupamiento que busca construir una jerarquía de grupos (clusters) basada en la similitud entre observaciones. Existen dos enfoques principales: aglomerativo (de abajo hacia arriba, donde cada observación comienza en su propio cluster y se van fusionando) y divisivo (de arriba hacia abajo, donde todas las observaciones comienzan en un único cluster que se va dividiendo).
+
+El algoritmo se basa en una matriz de distancias entre observaciones y un criterio de enlace que determina cómo se calcula la distancia entre clusters. Los criterios de enlace comunes incluyen:
+- Enlace simple: distancia mínima entre cualquier par de puntos de diferentes clusters
+- Enlace completo: distancia máxima entre cualquier par de puntos de diferentes clusters
+- Enlace promedio: promedio de distancias entre todos los pares de puntos de diferentes clusters
+- Método de Ward: minimiza la varianza dentro de los clusters
+
+Aplicación práctica:
+En nuestro estudio, aplicamos Clustering Jerárquico Aglomerativo con el método de Ward a una combinación de variables socioeconómicas y académicas para:
+1. Identificar perfiles o tipologías de estudiantes
+2. Descubrir patrones naturales en los datos que combinen características socioeconómicas y rendimiento académico
+3. Segmentar la población estudiantil para posibles intervenciones diferenciadas
+
+El procedimiento incluyó:
+- Estandarización de variables numéricas
+- Cálculo de la matriz de distancias euclidianas
+- Aplicación del algoritmo jerárquico con método de Ward
+- Determinación del número óptimo de clusters mediante el índice de silueta y el dendrograma
+- Caracterización de los clusters resultantes
+
+Interpretación de resultados:
+Los resultados del Clustering Jerárquico se interpretan mediante:
+- El dendrograma, que muestra la estructura jerárquica de los clusters
+- Los perfiles de los clusters, que muestran los valores promedio de cada variable por cluster
+- La distribución de los clusters según variables de interés
+- La proyección de los clusters en espacios reducidos (como los del ACP o ACM)
+
+En nuestro análisis, identificamos cinco perfiles de estudiantes claramente diferenciados, que van desde un grupo de alto nivel socioeconómico y alto rendimiento académico hasta un grupo de bajo nivel socioeconómico y bajo rendimiento académico, con grupos intermedios que muestran diferentes combinaciones de estas características.
+
+4. MODELOS PREDICTIVOS
+
+Fundamentos teóricos:
+Los modelos predictivos buscan establecer relaciones matemáticas entre variables predictoras (independientes) y una variable objetivo (dependiente) con el fin de realizar predicciones. En nuestro estudio, utilizamos varios modelos de regresión:
+
+a) Regresión Lineal Múltiple:
+Se basa en la ecuación Y = β₀ + β₁X₁ + β₂X₂ + ... + βₚXₚ + ε, donde Y es la variable dependiente, X₁...Xₚ son las variables independientes, β₀...βₚ son los coeficientes a estimar, y ε es el error. Los coeficientes se estiman minimizando la suma de cuadrados de los residuos.
+
+b) Regresión Ridge:
+Es una variante de la regresión lineal que añade un término de penalización para controlar la complejidad del modelo: min(||Y - Xβ||² + λ||β||²), donde λ es el parámetro de regularización. Esto ayuda a manejar la multicolinealidad y prevenir el sobreajuste.
+
+c) Regresión Lasso:
+Similar a Ridge, pero usa una penalización L1 en lugar de L2: min(||Y - Xβ||² + λ||β||₁). Esto produce modelos más parsimoniosos al forzar algunos coeficientes a ser exactamente cero.
+
+d) Random Forest:
+Es un método de ensamble que construye múltiples árboles de decisión y combina sus predicciones. Cada árbol se entrena con una muestra bootstrap de los datos y considera un subconjunto aleatorio de variables en cada división, lo que reduce la varianza y mejora la generalización.
+
+Aplicación práctica:
+En nuestro estudio, aplicamos estos modelos para predecir el rendimiento académico (puntaje en razonamiento cuantitativo) a partir de variables socioeconómicas:
+1. Preparación de datos (división en conjuntos de entrenamiento y prueba)
+2. Entrenamiento de múltiples modelos con diferentes hiperparámetros
+3. Evaluación y comparación de modelos mediante validación cruzada
+4. Análisis de importancia de variables
+5. Interpretación de coeficientes y predicciones
+
+Interpretación de resultados:
+Los resultados de los modelos predictivos se interpretan mediante:
+- Métricas de ajuste como R², RMSE (error cuadrático medio) y MAE (error absoluto medio)
+- Coeficientes estimados (para modelos lineales) o importancia de variables (para Random Forest)
+- Gráficos de valores predichos vs. reales
+- Análisis de residuos
+
+En nuestro análisis, el modelo Random Forest mostró el mejor desempeño predictivo (R² = 0.42), seguido por las regresiones Ridge y Lasso (R² ≈ 0.38). Las variables con mayor poder predictivo fueron el nivel educativo de los padres, el estrato socioeconómico y el acceso a internet.
+
+5. ANÁLISIS GEOESPACIAL
+
+Fundamentos teóricos:
+El análisis geoespacial estudia la distribución espacial de fenómenos y las relaciones entre variables en función de su ubicación geográfica. Se basa en la primera ley de la geografía de Tobler: "Todo está relacionado con todo lo demás, pero las cosas cercanas están más relacionadas que las distantes".
+
+Las técnicas de análisis geoespacial incluyen:
+- Mapas coropléticos: representan valores de una variable mediante colores en áreas geográficas
+- Mapas de calor: muestran la densidad o intensidad de un fenómeno mediante gradientes de color
+- Análisis de clusters espaciales: identifican agrupaciones geográficas significativas
+- Autocorrelación espacial: mide el grado de agrupamiento o dispersión de valores similares
+
+Aplicación práctica:
+En nuestro estudio, aplicamos análisis geoespacial para:
+1. Visualizar la distribución geográfica del rendimiento académico por departamentos
+2. Identificar patrones espaciales en la relación entre nivel socioeconómico y rendimiento
+3. Detectar posibles clusters geográficos de alto o bajo rendimiento
+4. Analizar la distribución espacial de los perfiles de estudiantes identificados
+
+El procedimiento incluyó:
+- Geocodificación de departamentos
+- Creación de mapas coropléticos para variables académicas y socioeconómicas
+- Generación de mapas de calor de rendimiento académico
+- Análisis de la distribución espacial de estratos socioeconómicos
+
+Interpretación de resultados:
+Los resultados del análisis geoespacial se interpretan observando:
+- Patrones de concentración o dispersión de valores
+- Gradientes geográficos en las variables de interés
+- Coincidencia espacial entre diferentes variables
+- Excepciones o anomalías espaciales
+
+En nuestro análisis, observamos marcadas diferencias regionales en el rendimiento académico, con mejores resultados en departamentos centrales como Bogotá, Antioquia y Valle del Cauca, y resultados más bajos en departamentos periféricos como Chocó, La Guajira y Amazonas. Estos patrones coinciden en gran medida con la distribución geográfica de los estratos socioeconómicos, reflejando desigualdades estructurales en el sistema educativo colombiano.
+
+CONCLUSIÓN
+
+Las técnicas estadísticas multivariantes empleadas en este estudio proporcionan un enfoque complementario y comprehensivo para analizar la compleja relación entre nivel socioeconómico y rendimiento académico. Cada técnica aporta una perspectiva diferente:
+
+- El ACP revela la estructura subyacente de las variables de rendimiento académico
+- El ACM visualiza asociaciones entre variables socioeconómicas categóricas
+- El Clustering Jerárquico identifica perfiles de estudiantes basados en características combinadas
+- Los Modelos Predictivos cuantifican la capacidad explicativa de las variables socioeconómicas
+- El Análisis Geoespacial contextualiza los hallazgos en el territorio colombiano
+
+La integración de estos resultados proporciona una comprensión más profunda y matizada de cómo el contexto socioeconómico influye en el desempeño académico de los estudiantes colombianos, ofreciendo bases sólidas para el diseño de políticas educativas más equitativas y efectivas.

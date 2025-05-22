@@ -1,0 +1,122 @@
+REPORTE DE SUPUESTOS Y VALIDACIÓN METODOLÓGICA
+
+Este documento detalla los supuestos estadísticos considerados en el análisis multivariante de la relación entre nivel socioeconómico y rendimiento académico en las Pruebas Saber Pro, así como las verificaciones realizadas para validar la aplicación de las técnicas utilizadas.
+
+1. SUPUESTOS GENERALES
+
+1.1. Representatividad de la muestra:
+Se asume que los datos analizados constituyen una muestra representativa de la población estudiantil que presentó las Pruebas Saber Pro en Colombia. La base de datos incluye estudiantes de diferentes regiones, instituciones y programas académicos, lo que respalda este supuesto.
+
+1.2. Calidad de los datos:
+Se asume que los datos proporcionados por el ICFES son precisos y confiables. Se realizaron verificaciones de consistencia y se manejaron adecuadamente los valores atípicos y faltantes para garantizar la calidad del análisis.
+
+1.3. Estabilidad temporal:
+Se asume que las relaciones identificadas entre variables socioeconómicas y rendimiento académico son relativamente estables en el período analizado. Para períodos más extensos, sería necesario considerar posibles cambios estructurales en el sistema educativo o en las condiciones socioeconómicas del país.
+
+2. SUPUESTOS ESPECÍFICOS POR TÉCNICA
+
+2.1. Análisis de Componentes Principales (ACP)
+
+Supuestos:
+- Linealidad: Se asume que las relaciones entre las variables son lineales.
+- Adecuación muestral: El tamaño de la muestra debe ser suficiente (generalmente n > 50).
+- Correlación entre variables: Debe existir correlación suficiente entre las variables para justificar la reducción de dimensionalidad.
+- Ausencia de valores atípicos extremos que puedan distorsionar los resultados.
+
+Verificaciones realizadas:
+- Matriz de correlación: Se verificó la existencia de correlaciones significativas entre las variables académicas.
+- Test de Kaiser-Meyer-Olkin (KMO): Se obtuvo un valor de 0.83, indicando una adecuación muestral "buena".
+- Test de esfericidad de Bartlett: p < 0.001, rechazando la hipótesis nula de que la matriz de correlaciones es una matriz identidad.
+- Análisis de valores atípicos: Se identificaron y trataron valores extremos mediante winsorización al percentil 99.
+
+2.2. Análisis de Correspondencias Múltiples (ACM)
+
+Supuestos:
+- Variables categóricas: Las variables deben ser categóricas o discretizadas adecuadamente.
+- Tamaño muestral: Debe ser suficiente para representar todas las combinaciones de categorías.
+- Homogeneidad: Las observaciones dentro de cada categoría deben ser relativamente homogéneas.
+
+Verificaciones realizadas:
+- Transformación de variables: Las variables numéricas fueron discretizadas en categorías significativas.
+- Tablas de contingencia: Se verificó que no hubiera categorías con frecuencias extremadamente bajas.
+- Contribuciones: Se analizaron las contribuciones de cada categoría a las dimensiones principales para asegurar una representación equilibrada.
+
+2.3. Clustering Jerárquico
+
+Supuestos:
+- Distancia significativa: La medida de distancia utilizada debe ser significativa para los datos.
+- Ausencia de valores atípicos extremos que puedan distorsionar la formación de clusters.
+- Escalamiento adecuado: Las variables deben estar en escalas comparables.
+
+Verificaciones realizadas:
+- Estandarización: Todas las variables fueron estandarizadas antes del análisis.
+- Dendrograma: Se examinó visualmente para identificar la estructura jerárquica y determinar el número óptimo de clusters.
+- Índice de silueta: Se calculó para diferentes números de clusters, obteniendo un valor máximo de 0.42 para 5 clusters.
+- Estabilidad: Se verificó la estabilidad de los clusters mediante validación cruzada y remuestreo.
+
+2.4. Modelos Predictivos
+
+Supuestos para modelos lineales:
+- Linealidad: La relación entre predictores y variable respuesta debe ser lineal.
+- Independencia: Las observaciones deben ser independientes entre sí.
+- Homocedasticidad: La varianza de los errores debe ser constante.
+- Normalidad de residuos: Los residuos deben seguir una distribución aproximadamente normal.
+- Ausencia de multicolinealidad: Los predictores no deben estar altamente correlacionados entre sí.
+
+Verificaciones realizadas:
+- Gráficos de dispersión: Se verificó la linealidad entre predictores y variable respuesta.
+- Gráficos de residuos vs. valores ajustados: Se verificó la homocedasticidad.
+- QQ-plots: Se verificó la normalidad aproximada de los residuos.
+- Factor de inflación de varianza (VIF): Se calculó para detectar multicolinealidad, aplicando regularización (Ridge, Lasso) cuando fue necesario.
+- Validación cruzada: Se utilizó validación cruzada de 5 pliegues para evaluar la generalización de los modelos.
+
+Para Random Forest:
+- No requiere los supuestos de los modelos lineales, pero se verificó:
+  * Importancia de variables para detectar posibles sesgos
+  * Profundidad óptima de los árboles para evitar sobreajuste
+  * Número óptimo de árboles mediante validación cruzada
+
+2.5. Análisis Geoespacial
+
+Supuestos:
+- Precisión geográfica: Las coordenadas asignadas a cada departamento son suficientemente precisas para el nivel de análisis realizado.
+- Representatividad espacial: La distribución espacial de las observaciones refleja la distribución real de la población estudiantil.
+
+Verificaciones realizadas:
+- Validación de coordenadas: Se verificó la precisión de las coordenadas asignadas a cada departamento.
+- Análisis de densidad: Se verificó que la densidad de observaciones por departamento fuera suficiente para realizar inferencias válidas.
+- Pruebas de autocorrelación espacial: Se calculó el índice de Moran para verificar la existencia de patrones espaciales significativos.
+
+3. LIMITACIONES METODOLÓGICAS
+
+3.1. Causalidad:
+El análisis identifica asociaciones estadísticas, pero no establece relaciones causales directas. Factores no observados podrían explicar parte de las asociaciones encontradas.
+
+3.2. Granularidad geográfica:
+El análisis geoespacial se realizó a nivel departamental, lo que puede ocultar variaciones importantes a nivel municipal o de localidad.
+
+3.3. Variables omitidas:
+Factores importantes como la calidad de las instituciones educativas, metodologías pedagógicas o características psicológicas de los estudiantes no fueron incluidos en el análisis por limitaciones en los datos disponibles.
+
+3.4. Discretización de variables:
+La categorización de variables continuas para el ACM implica cierta pérdida de información, aunque se buscó minimizar este efecto mediante criterios de discretización adecuados.
+
+4. VALIDACIÓN DE RESULTADOS
+
+4.1. Consistencia interna:
+Se verificó la consistencia entre los resultados obtenidos por diferentes técnicas. Por ejemplo, los perfiles identificados mediante clustering son coherentes con las asociaciones visualizadas en el ACM y con los factores predictivos identificados en los modelos de regresión.
+
+4.2. Validación cruzada:
+Para los modelos predictivos, se utilizó validación cruzada de 5 pliegues para evaluar su capacidad de generalización, obteniendo resultados consistentes entre los diferentes subconjuntos de datos.
+
+4.3. Análisis de sensibilidad:
+Se realizaron análisis de sensibilidad para evaluar la robustez de los resultados ante diferentes decisiones metodológicas, como el número de componentes en ACP, el número de clusters, o los hiperparámetros de los modelos predictivos.
+
+4.4. Comparación con literatura:
+Los resultados obtenidos fueron contrastados con estudios previos sobre la relación entre nivel socioeconómico y rendimiento académico en Colombia y otros países latinoamericanos, encontrando consistencia en los patrones generales identificados.
+
+CONCLUSIÓN
+
+Los supuestos estadísticos para cada técnica fueron verificados adecuadamente, y se tomaron medidas correctivas cuando fue necesario. Las limitaciones metodológicas identificadas no comprometen la validez general de los hallazgos, aunque deben tenerse en cuenta al interpretar los resultados y derivar conclusiones. La consistencia entre los resultados obtenidos por diferentes técnicas y su alineación con la literatura existente respaldan la robustez del análisis realizado.
+
+Este reporte de supuestos y validación metodológica proporciona transparencia sobre el proceso analítico y contribuye a una interpretación adecuada de los resultados presentados en los demás documentos del proyecto.

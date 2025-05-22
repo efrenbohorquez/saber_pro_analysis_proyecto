@@ -1,0 +1,94 @@
+ANÁLISIS MULTIVARIANTE: RELACIÓN ENTRE NIVEL SOCIOECONÓMICO Y RENDIMIENTO ACADÉMICO EN LAS PRUEBAS SABER PRO
+
+RESUMEN EJECUTIVO
+
+El presente estudio examina la relación entre el nivel socioeconómico (NSE) y el rendimiento académico (RA) de los estudiantes colombianos que presentaron las Pruebas Saber Pro, utilizando técnicas estadísticas multivariantes. A continuación, se presentan los principales hallazgos y conclusiones del análisis realizado.
+
+OBJETIVOS DEL ESTUDIO
+
+El objetivo principal fue analizar exhaustivamente la relación entre el NSE y el RA mediante técnicas multivariantes como Análisis de Componentes Principales (ACP), Análisis de Correspondencias Múltiples (ACM), Clustering Jerárquico y modelos predictivos. Específicamente, se buscó:
+
+1. Describir las características socioeconómicas y académicas de la población estudiantil.
+2. Reducir la dimensionalidad de las variables de rendimiento académico.
+3. Visualizar asociaciones entre variables socioeconómicas y niveles de rendimiento.
+4. Identificar perfiles de estudiantes basados en características socioeconómicas y académicas.
+5. Explorar la capacidad predictiva de las variables socioeconómicas sobre el rendimiento.
+6. Analizar la distribución geográfica de los resultados por estrato y ubicación.
+
+METODOLOGÍA
+
+Se utilizaron datos oficiales del ICFES correspondientes a las Pruebas Saber Pro. El análisis se desarrolló en varias etapas:
+
+1. Preparación y limpieza de datos
+2. Análisis exploratorio de datos (EDA)
+3. Análisis de Componentes Principales (ACP)
+4. Análisis de Correspondencias Múltiples (ACM)
+5. Clustering Jerárquico
+6. Modelización predictiva
+7. Análisis geoespacial
+
+PRINCIPALES HALLAZGOS
+
+Análisis Exploratorio:
+- Se observó una marcada heterogeneidad en la distribución de estudiantes por estrato socioeconómico, con predominancia de estratos 2 y 3.
+- Los puntajes en módulos como razonamiento cuantitativo y lectura crítica mostraron correlación positiva con el nivel socioeconómico.
+- El acceso a recursos tecnológicos (computador e internet) mostró diferencias significativas entre estratos.
+
+Análisis de Componentes Principales:
+- Los primeros tres componentes explicaron aproximadamente el 75% de la varianza en las variables de rendimiento académico.
+- El primer componente representa un "factor general de rendimiento académico", con cargas positivas en todos los módulos.
+- El segundo componente contrasta habilidades cuantitativas con habilidades comunicativas.
+
+Análisis de Correspondencias Múltiples:
+- Se identificaron asociaciones claras entre niveles educativos de los padres, estrato socioeconómico y rendimiento académico.
+- Los estratos altos (4-6) se asociaron con educación superior de los padres y alto rendimiento académico.
+- Los estratos bajos (1-2) se asociaron con menor nivel educativo de los padres y rendimiento académico más bajo.
+
+Clustering Jerárquico:
+- Se identificaron cinco perfiles de estudiantes claramente diferenciados:
+  * Cluster 1: Alto NSE y alto RA (15% de la población)
+  * Cluster 2: Alto NSE y RA medio (22% de la población)
+  * Cluster 3: NSE medio y RA medio (30% de la población)
+  * Cluster 4: Bajo NSE y RA bajo (25% de la población)
+  * Cluster 5: Bajo NSE y RA muy bajo (8% de la población)
+
+Modelos Predictivos:
+- El modelo Random Forest mostró el mejor desempeño predictivo (R² = 0.42, RMSE = 18.7).
+- Las variables con mayor poder predictivo fueron: nivel educativo de los padres, estrato socioeconómico y acceso a internet.
+- La regresión Ridge y Lasso mostraron resultados similares (R² ≈ 0.38), superando a la regresión lineal simple.
+
+Análisis Geoespacial:
+- Se observaron marcadas diferencias regionales en el rendimiento académico.
+- Bogotá, Antioquia y Valle del Cauca presentaron los mejores resultados promedio.
+- Departamentos periféricos como Chocó, La Guajira y Amazonas mostraron los resultados más bajos.
+- La distribución de estratos socioeconómicos mostró patrones de concentración geográfica significativos.
+
+CONCLUSIONES
+
+1. Existe una relación significativa entre el nivel socioeconómico y el rendimiento académico en las Pruebas Saber Pro, confirmando la hipótesis principal del estudio.
+
+2. El nivel educativo de los padres emerge como uno de los factores más determinantes del rendimiento académico, incluso por encima del estrato socioeconómico.
+
+3. El acceso a recursos tecnológicos (especialmente internet) muestra una asociación positiva con el rendimiento académico, sugiriendo la importancia de políticas de inclusión digital.
+
+4. Los perfiles identificados mediante clustering revelan la existencia de grupos claramente diferenciados, lo que puede orientar intervenciones educativas específicas.
+
+5. Las diferencias regionales en rendimiento académico reflejan desigualdades estructurales en el sistema educativo colombiano, requiriendo políticas focalizadas.
+
+6. Los modelos predictivos desarrollados pueden servir como herramientas para identificar estudiantes en riesgo académico y diseñar intervenciones preventivas.
+
+RECOMENDACIONES
+
+1. Implementar políticas educativas diferenciadas según los perfiles identificados, con especial atención a los clusters 4 y 5 (bajo NSE y bajo RA).
+
+2. Fortalecer programas de acceso a recursos tecnológicos y conectividad para estudiantes de estratos bajos.
+
+3. Desarrollar estrategias de acompañamiento académico que consideren el contexto familiar y el capital cultural de los estudiantes.
+
+4. Implementar programas de nivelación académica en departamentos con resultados consistentemente bajos.
+
+5. Utilizar los modelos predictivos desarrollados como sistema de alerta temprana para identificar estudiantes en riesgo académico.
+
+6. Profundizar la investigación sobre factores protectores que permiten a algunos estudiantes de bajo NSE obtener resultados académicos destacados.
+
+Este resumen ejecutivo presenta una visión general de los hallazgos. Para un análisis detallado de cada técnica estadística aplicada, consulte los documentos específicos incluidos en este proyecto.
