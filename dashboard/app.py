@@ -5,16 +5,74 @@ Aplicación principal del dashboard en Streamlit para visualizar los resultados 
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
-import sys
-from pathlib import Path
-import os
+import plotly.io as pio
+from plotly.subplots import make_subplots
 import folium
-from streamlit_folium import folium_static
-import pickle
+from streamlit_folium import st_folium, folium_static # Asegurar que folium_static esté importado
+from scipy import stats
+import os
+from pathlib import Path
+import joblib  # Para cargar modelos guardados
+import sys # Importar sys
+
+# Configuración de la plantilla estilo The Economist
+economist_template = go.layout.Template()
+
+economist_template.layout = go.Layout(
+    font_family="Arial, sans-serif",
+    font_color="#2E2E2E",  # Gris oscuro para texto
+    title_font_family="Georgia, serif", # Fuente con serifa para títulos
+    title_font_color="#2E2E2E",
+    title_x=0.01,  # Título alineado a la izquierda
+    title_y=0.95,
+    title_yanchor='top',
+    title_xanchor='left',
+    title_pad_t=20, # Más espacio arriba del título
+    title_pad_l=10,
+    title_font_size=20,
+    plot_bgcolor='white',
+    paper_bgcolor='white',
+    colorway=['#FF9999', '#757575', '#BDBDBD', '#2E2E2E', '#FFB6C1', '#87CEEB'], # Rojo Economist cambiado a pastel, grises, negro, rosa claro, azul claro
+    xaxis=dict(
+        showgrid=False,
+        zeroline=False,
+        linecolor='#757575',
+        linewidth=1,
+        ticks='outside',
+        tickfont_color='#757575',
+        title_font_color='#2E2E2E',
+        title_standoff=15,
+        automargin=True
+    ),
+    yaxis=dict(
+        showgrid=True,
+        gridcolor='#E0E0E0', # Rejilla horizontal muy sutil
+        zeroline=False,
+        linecolor='#757575',
+        linewidth=1,
+        ticks='outside',
+        tickfont_color='#757575',
+        title_font_color='#2E2E2E',
+        title_standoff=15,
+        automargin=True
+    ),
+    legend_orientation="h",
+    legend_yanchor="bottom",
+    legend_y=1.01,
+    legend_xanchor="left", # Leyenda a la izquierda debajo del título
+    legend_x=0.01,
+    legend_bgcolor='rgba(255,255,255,0.7)',
+    legend_bordercolor='#CCCCCC',
+    legend_borderwidth=0.5,
+    legend_tracegroupgap=10,
+    margin=dict(l=80, r=30, t=100, b=80) # Ajustar márgenes (más espacio para título y ejes)
+)
+
+# Registrar y establecer la plantilla como predeterminada
+pio.templates['economist'] = economist_template
+pio.templates.default = 'economist'
 
 # Agregar el directorio raíz al path para importar módulos del proyecto
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -50,7 +108,7 @@ def load_data():
         st.error(f"No se encontró el archivo de datos en la ruta especificada: {RAW_DATA_FILE}. Por favor, verifique la ruta.")
         return None
     except Exception as e:
-        st.error(f"Ocurrió un error al cargar los datos desde {new_data_path}: {e}")
+        st.error(f"Ocurrió un error al cargar los datos: {e}")
         return None
 
 @st.cache_data
@@ -112,6 +170,13 @@ def show_header():
 def show_home():
     """Muestra la página de inicio del dashboard."""
     st.header("🏠 Inicio")
+
+    # Mostrar la imagen del banner
+    banner_path = Path(__file__).parent / "assets" / "484798221_1031777162319148_3372633552707418771_n.jpg"
+    if banner_path.exists():
+        st.image(str(banner_path), use_container_width=True) # Corregido aquí
+    else:
+        st.warning(f"No se encontró la imagen del banner en {banner_path}")
     
     st.markdown("""
     ## Análisis Multivariante: Relación entre Nivel Socioeconómico y Rendimiento Académico en las Pruebas Saber Pro
@@ -260,43 +325,78 @@ def show_eda():
                 fig.update_layout(xaxis_tickangle=-45)
                 st.plotly_chart(fig, use_container_width=True)
         
-        # Acceso a tecnología
-        st.subheader("Acceso a Tecnología y Recursos")
-        
-        tech_vars = ['FAMI_TIENECOMPUTADOR', 'FAMI_TIENEINTERNET', 'FAMI_TIENELAVADORA', 'FAMI_TIENEAUTOMOVIL']
-        tech_vars = [var for var in tech_vars if var in df.columns]
-        
-        if tech_vars:
-            # Convertir a formato largo para gráfico
-            tech_data = pd.melt(
-                df[tech_vars], 
-                var_name='Recurso', 
-                value_name='Tiene'
-            )
-            
-            # Mapear nombres más legibles
-            resource_names = {
-                'FAMI_TIENECOMPUTADOR': 'Computador',
-                'FAMI_TIENEINTERNET': 'Internet',
-                'FAMI_TIENELAVADORA': 'Lavadora',
-                'FAMI_TIENEAUTOMOVIL': 'Automóvil'
-            }
-            
-            tech_data['Recurso'] = tech_data['Recurso'].map(resource_names)
-            
-            # Contar por recurso
-            tech_counts = tech_data.groupby(['Recurso', 'Tiene']).size().reset_index(name='Cantidad')
-            
-            fig = px.bar(
-                tech_counts,
-                x='Recurso',
-                y='Cantidad',
-                color='Tiene',
-                title="Acceso a Recursos Tecnológicos",
-                barmode='group',
-                color_discrete_sequence=['#d62728', '#1f77b4']
-            )
-            st.plotly_chart(fig, use_container_width=True)
+        with col2:
+            # Nuevas visualizaciones socioeconómicas
+
+            st.subheader("Horas de Trabajo Semanales")
+            if 'ESTU_HORASSEMANATRABAJA_NUM' in df.columns:
+                fig_horas_trabajo = px.histogram(
+                    df, 
+                    x='ESTU_HORASSEMANATRABAJA_NUM',
+                    title="Distribución de Horas de Trabajo Semanales",
+                    marginal="box"
+                )
+                st.plotly_chart(fig_horas_trabajo, use_container_width=True, key="horas_trabajo_hist")
+            else:
+                st.markdown("_Variable 'ESTU_HORASSEMANATRABAJA_NUM' no encontrada._")
+
+            st.subheader("Valor de Matrícula Universitaria")
+            if 'ESTU_VALORMATRICULAUNIVERSIDAD' in df.columns:
+                # Podría ser útil transformar esta variable (e.g. log) si está muy sesgada
+                # o manejar valores no numéricos si existen.
+                # Por ahora, un histograma directo asumiendo que es numérica.
+                df_matricula = df[pd.to_numeric(df['ESTU_VALORMATRICULAUNIVERSIDAD'], errors='coerce').notna()]
+                fig_valor_matricula = px.histogram(
+                    df_matricula, 
+                    x='ESTU_VALORMATRICULAUNIVERSIDAD',
+                    title="Distribución del Valor de Matrícula Universitaria",
+                    marginal="box"
+                )
+                st.plotly_chart(fig_valor_matricula, use_container_width=True, key="valor_matricula_hist")
+            else:
+                st.markdown("_Variable 'ESTU_VALORMATRICULAUNIVERSIDAD' no encontrada._")
+
+            st.subheader("Fuentes de Pago de Matrícula")
+            payment_vars = [
+                'ESTU_PAGOMATRICULABECA',
+                'ESTU_PAGOMATRICULACREDITO',
+                'ESTU_PAGOMATRICULAPADRES',
+                'ESTU_PAGOMATRICULAPROPIO'
+            ]
+            existing_payment_vars = [var for var in payment_vars if var in df.columns]
+
+            if existing_payment_vars:
+                payment_data = pd.melt(
+                    df[existing_payment_vars],
+                    var_name='Fuente de Pago',
+                    value_name='Respuesta'
+                )
+                
+
+                payment_names = {
+                    'ESTU_PAGOMATRICULABECA': 'Beca',
+                    'ESTU_PAGOMATRICULACREDITO': 'Crédito',
+                    'ESTU_PAGOMATRICULAPADRES': 'Padres/Familiares',
+                    'ESTU_PAGOMATRICULAPROPIO': 'Recursos Propios'
+                }
+                payment_data['Fuente de Pago'] = payment_data['Fuente de Pago'].map(payment_names)
+                
+                # Contar respuestas (asumiendo que son categóricas, e.g., 'Si', 'No', o niveles)
+                # Si son booleanas o 'Si'/'No', podríamos filtrar por 'Si'
+                # Por ahora, mostramos todas las respuestas encontradas por fuente
+                payment_counts = payment_data.groupby(['Fuente de Pago', 'Respuesta']).size().reset_index(name='Cantidad')
+                
+                fig_payment = px.bar(
+                    payment_counts,
+                    x='Fuente de Pago',
+                    y='Cantidad',
+                    color='Respuesta',
+                    title="Fuentes de Pago de Matrícula",
+                    barmode='group'
+                )
+                st.plotly_chart(fig_payment, use_container_width=True, key="fuentes_pago_bar")
+            else:
+                st.markdown("_No se encontraron variables sobre fuentes de pago de matrícula._")
     
     with tab3:
         st.subheader("Distribuciones")
@@ -316,7 +416,7 @@ def show_eda():
                 color_discrete_sequence=['#1f77b4'],
                 marginal="box"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key=f"dist_hist_{selected_var}")
         
         with col2:
             # QQ Plot para normalidad
@@ -328,21 +428,27 @@ def show_eda():
                 title=f"QQ Plot de {selected_var}",
                 labels={"x": "Cuantiles teóricos", "y": "Cuantiles observados"}
             )
+            st.plotly_chart(fig, use_container_width=True, key=f"dist_qq_{selected_var}")
+        
+        # Prueba de Shapiro-Wilk para normalidad
+        st.subheader("Prueba de Normalidad")
+        
+        if selected_var in df.columns:
+            from scipy.stats import shapiro
             
-            # Añadir línea de referencia
-            min_val = df[selected_var].min()
-            max_val = df[selected_var].max()
-            fig.add_trace(
-                go.Scatter(
-                    x=[min_val, max_val],
-                    y=[min_val, max_val],
-                    mode='lines',
-                    line=dict(color='red', dash='dash'),
-                    showlegend=False
-                )
-            )
+            # Realizar prueba de Shapiro-Wilk
+            stat, p_value = shapiro(df[selected_var].dropna())
             
-            st.plotly_chart(fig, use_container_width=True)
+            # Mostrar resultados
+            st.write(f"Estadístico de prueba: {stat:.4f}")
+            st.write(f"Valor p: {p_value:.4f}")
+            
+            # Interpretar resultados
+            alpha = 0.05
+            if p_value > alpha:
+                st.success("No se rechaza la hipótesis nula: los datos siguen una distribución normal.")
+            else:
+                st.error("Se rechaza la hipótesis nula: los datos no siguen una distribución normal.")
     
     with tab4:
         st.subheader("Correlaciones")
@@ -756,7 +862,7 @@ def show_clustering():
         # Mostrar distribución por estrato
         strata_dist_path = FIGURES_DIR / 'cluster_distribution_by_strata.png'
         if os.path.exists(strata_dist_path):
-            st.image(str(strata_dist_path), caption="Distribución de Clusters por Estrato")
+            st.image(strata_dist_path, caption="Distribución de Clusters por Estrato")
         else:
             st.error("No se encontró el gráfico de distribución por estrato.")
         
