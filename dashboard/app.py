@@ -40,13 +40,14 @@ st.set_page_config(
 @st.cache_data
 def load_data():
     """Carga los datos procesados."""
-    new_data_path = r"C:\\Users\\efren\\dataset dividido\\dataset_dividido_10.csv"
+    from src.config.constants import RAW_DATA_FILE
+    
     try:
-        df = pd.read_csv(new_data_path)
-        st.success(f"Datos cargados exitosamente desde {new_data_path}")
+        df = pd.read_csv(RAW_DATA_FILE)
+        st.success(f"Datos cargados exitosamente desde {RAW_DATA_FILE}")
         return df
     except FileNotFoundError:
-        st.error(f"No se encontró el archivo de datos en la ruta especificada: {new_data_path}. Por favor, verifique la ruta.")
+        st.error(f"No se encontró el archivo de datos en la ruta especificada: {RAW_DATA_FILE}. Por favor, verifique la ruta.")
         return None
     except Exception as e:
         st.error(f"Ocurrió un error al cargar los datos desde {new_data_path}: {e}")

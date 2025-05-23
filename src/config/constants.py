@@ -51,7 +51,7 @@ ACADEMIC_VARS = [
     'MOD_INGLES_DESEM',
     'MOD_LECTURA_CRITICA_PUNT',
     'MOD_INGLES_PUNT',
-    'MOD_COMPETEN_CIUDADA_PUNT'  # Corregido para coincidir con el nombre exacto en el archivo Excel
+    'MOD_COMPETEN_\nCIUDADA_PUNT'  # Actualizado para coincidir con el nombre exacto en el archivo CSV
 ]
 
 # Variables de ubicación geográfica

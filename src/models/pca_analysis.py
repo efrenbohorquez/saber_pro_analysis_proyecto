@@ -9,6 +9,7 @@ import seaborn as sns
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import sys
+import os
 from pathlib import Path
 
 # Agregar el directorio raíz al path para importar módulos del proyecto

@@ -28,7 +28,7 @@ from src.config.constants import (
     STRATA_COLORS
 )
 
-def perform_hierarchical_clustering(df, variables, n_clusters=None, scale=True):
+def perform_hierarchical_clustering(df, variables, n_clusters=None, scale=True, max_samples=5000):
     """
     Realiza clustering jerárquico sobre las variables seleccionadas.
     
@@ -37,6 +37,8 @@ def perform_hierarchical_clustering(df, variables, n_clusters=None, scale=True):
         variables (list): Lista de nombres de columnas para incluir en el análisis.
         n_clusters (int, optional): Número de clusters a formar. Si es None, se determina automáticamente.
         scale (bool, optional): Si es True, estandariza las variables antes del análisis.
+        max_samples (int, optional): Número máximo de muestras a utilizar para el clustering para evitar
+                                     problemas de memoria. Por defecto 5000.
         
     Returns:
         tuple: (model, labels, X)
@@ -50,6 +52,12 @@ def perform_hierarchical_clustering(df, variables, n_clusters=None, scale=True):
     # Manejar valores faltantes
     X = X.fillna(X.mean())
     
+    # Aplicar muestreo si el conjunto de datos es demasiado grande
+    original_size = X.shape[0]
+    if original_size > max_samples:
+        print(f"Aplicando muestreo para clustering jerárquico: reduciendo de {original_size} a {max_samples} muestras")
+        X = X.sample(n=max_samples, random_state=RANDOM_STATE)
+    
     # Estandarizar si es necesario
     if scale:
         scaler = StandardScaler()
@@ -61,12 +69,20 @@ def perform_hierarchical_clustering(df, variables, n_clusters=None, scale=True):
     if n_clusters is None:
         n_clusters = 5  # Valor predeterminado
     
-    # Realizar clustering jerárquico
-    model = AgglomerativeClustering(
-        n_clusters=n_clusters,
-        affinity='euclidean',
-        linkage='ward'
-    )
+    # Realizar clustering jerárquico con política de memoria eficiente
+    try:
+        # Intentar usar memory="whatever" para optimizar memoria si está disponible
+        model = AgglomerativeClustering(
+            n_clusters=n_clusters,
+            linkage='ward',
+            memory="whatever"  # Permite que scikit-learn gestione la memoria eficientemente
+        )
+    except TypeError:
+        # Fallback si la versión de scikit-learn no soporta este parámetro
+        model = AgglomerativeClustering(
+            n_clusters=n_clusters,
+            linkage='ward'
+        )
     
     labels = model.fit_predict(X_scaled)
     
@@ -120,7 +136,7 @@ def plot_dendrogram(X, max_samples=100, output_file=None):
     
     return fig
 
-def plot_silhouette_scores(df, variables, max_clusters=10, output_file=None):
+def plot_silhouette_scores(df, variables, max_clusters=10, output_file=None, sample_size=5000):
     """
     Genera un gráfico de puntuaciones de silueta para diferentes números de clusters.
     
@@ -129,6 +145,7 @@ def plot_silhouette_scores(df, variables, max_clusters=10, output_file=None):
         variables (list): Lista de nombres de columnas para incluir en el análisis.
         max_clusters (int, optional): Número máximo de clusters a evaluar.
         output_file (str, optional): Ruta para guardar el gráfico. Si es None, no se guarda.
+        sample_size (int, optional): Tamaño máximo de la muestra para usar. Por defecto 5000 para evitar problemas de memoria.
         
     Returns:
         tuple: (matplotlib.figure.Figure, optimal_n_clusters)
@@ -137,8 +154,15 @@ def plot_silhouette_scores(df, variables, max_clusters=10, output_file=None):
     """
     from sklearn.metrics import silhouette_score
     
+    # Tomar una muestra si el DataFrame es muy grande para evitar problemas de memoria
+    if df.shape[0] > sample_size:
+        print(f"Tomando una muestra aleatoria de {sample_size} filas para el análisis de clustering")
+        df_sample = df.sample(sample_size, random_state=RANDOM_STATE)
+    else:
+        df_sample = df
+    
     # Seleccionar solo las variables numéricas
-    X = df[variables].select_dtypes(include=['number'])
+    X = df_sample[variables].select_dtypes(include=['number'])
     
     # Manejar valores faltantes
     X = X.fillna(X.mean())
@@ -150,7 +174,8 @@ def plot_silhouette_scores(df, variables, max_clusters=10, output_file=None):
     # Calcular puntuaciones de silueta para diferentes números de clusters
     silhouette_scores = []
     for n_clusters in range(2, max_clusters + 1):
-        model = AgglomerativeClustering(n_clusters=n_clusters, affinity='euclidean', linkage='ward')
+        # Usar configuración compatible con versiones más recientes de scikit-learn
+        model = AgglomerativeClustering(n_clusters=n_clusters, linkage='ward')
         labels = model.fit_predict(X_scaled)
         
         # Calcular puntuación de silueta
@@ -324,16 +349,31 @@ def plot_cluster_distribution(df, labels, group_var, output_file=None):
     
     return fig
 
-def cluster_socioeconomic_academic(df):
+def cluster_socioeconomic_academic(df, sample_size=2000, max_clusters=6):
     """
     Realiza clustering jerárquico combinando variables socioeconómicas y académicas.
     
     Args:
         df (pandas.DataFrame): DataFrame con los datos.
+        sample_size (int, optional): Tamaño máximo de la muestra para usar. Por defecto 2000 para evitar problemas de memoria.
+        max_clusters (int, optional): Número máximo de clusters a evaluar. Por defecto 6.
         
     Returns:
         tuple: (model, labels, X_scaled)
     """
+    # Para el análisis silhouette y otros procedimientos preparatorios, usamos una muestra
+    # pero mantenemos el DataFrame completo para aplicar el modelo final
+    df_full = df.copy()
+    
+    # Tomar una muestra para los análisis previos (silhouette, etc.)
+    if df.shape[0] > sample_size:
+        print(f"Tomando una muestra aleatoria de {sample_size} filas para el análisis previo de clustering")
+        df_sample = df.sample(sample_size, random_state=RANDOM_STATE)
+    else:
+        df_sample = df.copy()
+        
+    print(f"Dimensiones del DataFrame muestreado para clustering: {df_sample.shape}")
+    
     # Seleccionar variables para clustering
     socioeconomic_vars = [
         'NSE_SCORE',  # Variable compuesta de nivel socioeconómico
@@ -342,34 +382,79 @@ def cluster_socioeconomic_academic(df):
         'ESTRATO_NUM'
     ]
     
-    academic_vars = [var for var in df.columns if var.startswith('MOD_') and 'PUNT' in var]
+    academic_vars = [var for var in df_sample.columns if var.startswith('MOD_') and 'PUNT' in var]
     
     # Filtrar solo las variables que existen en el DataFrame
-    cluster_vars = [var for var in socioeconomic_vars + academic_vars if var in df.columns]
+    cluster_vars = [var for var in socioeconomic_vars + academic_vars if var in df_sample.columns]
+    print(f"Variables usadas para clustering: {cluster_vars}")
     
     # Determinar número óptimo de clusters
     os.makedirs(FIGURES_DIR, exist_ok=True)
     silhouette_file = FIGURES_DIR / 'cluster_silhouette_scores.png'
-    _, optimal_n_clusters = plot_silhouette_scores(df, cluster_vars, output_file=silhouette_file)
+    _, optimal_n_clusters = plot_silhouette_scores(df_sample, cluster_vars, max_clusters=max_clusters, 
+                                                output_file=silhouette_file, sample_size=min(sample_size, 5000))
+    
+    print(f"Número óptimo de clusters determinado: {optimal_n_clusters}")
     
     # Realizar clustering con número óptimo de clusters
-    model, labels, X_scaled = perform_hierarchical_clustering(df, cluster_vars, n_clusters=optimal_n_clusters)
+    # Usamos el parámetro max_samples para evitar problemas de memoria durante el clustering jerárquico
+    model, labels_sample, X_scaled = perform_hierarchical_clustering(
+        df_sample, 
+        cluster_vars, 
+        n_clusters=optimal_n_clusters,
+        max_samples=min(sample_size, 5000)
+    )
     
     # Generar dendrograma
     dendrogram_file = FIGURES_DIR / 'cluster_dendrogram.png'
-    plot_dendrogram(X_scaled, output_file=dendrogram_file)
+    plot_dendrogram(X_scaled, max_samples=min(100, sample_size), output_file=dendrogram_file)
     
     # Generar perfiles de clusters
     profiles_file = FIGURES_DIR / 'cluster_profiles.png'
-    plot_cluster_profiles(df, cluster_vars, labels, output_file=profiles_file)
+    plot_cluster_profiles(df_sample, cluster_vars, labels_sample, output_file=profiles_file)
     
     # Generar distribución por estrato
-    if 'FAMI_ESTRATOVIVIENDA' in df.columns:
+    if 'FAMI_ESTRATOVIVIENDA' in df_sample.columns:
         strata_dist_file = FIGURES_DIR / 'cluster_distribution_by_strata.png'
-        plot_cluster_distribution(df, labels, 'FAMI_ESTRATOVIVIENDA', output_file=strata_dist_file)
+        plot_cluster_distribution(df_sample, labels_sample, 'FAMI_ESTRATOVIVIENDA', output_file=strata_dist_file)
+    
+    # Aplicar el modelo a todos los datos para obtener etiquetas para el conjunto completo
+    # Primero entrenar un clasificador rápido con las etiquetas generadas
+    from sklearn.ensemble import RandomForestClassifier
+    
+    # Seleccionar solo las variables numéricas existentes en todo el conjunto de datos
+    X_train = df_sample[cluster_vars].select_dtypes(include=['number']).fillna(0)
+    
+    # Entrenar un clasificador
+    clf = RandomForestClassifier(n_estimators=50, random_state=RANDOM_STATE, n_jobs=-1)
+    clf.fit(X_train, labels_sample)
+    
+    # Aplicar el clasificador a todo el conjunto de datos en lotes para evitar problemas de memoria
+    print(f"Aplicando modelo a todos los datos ({df_full.shape[0]} filas) en lotes")
+    batch_size = 10000  # Procesar en lotes de 10,000 filas
+    all_labels = []
+    
+    for i in range(0, df_full.shape[0], batch_size):
+        end_idx = min(i + batch_size, df_full.shape[0])
+        print(f"Procesando lote {i//batch_size + 1}: filas {i} a {end_idx}")
+        
+        # Tomar un lote de datos
+        df_batch = df_full.iloc[i:end_idx]
+        
+        # Preparar datos para predicción
+        X_batch = df_batch[cluster_vars].select_dtypes(include=['number']).fillna(0)
+        
+        # Predecir cluster
+        batch_labels = clf.predict(X_batch)
+        all_labels.extend(batch_labels)
+    
+    # Convertir todas las etiquetas a una array de NumPy
+    labels = np.array(all_labels)
+    
+    print(f"Etiquetas generadas para {len(labels)} instancias en el conjunto completo")
     
     # Guardar etiquetas en el DataFrame original
-    df_clusters = df.copy()
+    df_clusters = df_full.copy()
     df_clusters['CLUSTER'] = labels
     
     # Guardar resultados

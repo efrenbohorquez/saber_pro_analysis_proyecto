@@ -43,7 +43,8 @@ def run_all_analyses(force_reload=False):
     
     # Clustering Jerárquico
     print("\n4. Realizando Clustering Jerárquico...")
-    model, labels, X_scaled = cluster_socioeconomic_academic(df)
+    # Usar parámetros optimizados para reducir el uso de memoria
+    model, labels, X_scaled = cluster_socioeconomic_academic(df, sample_size=3000, max_clusters=6)
     
     # Modelos Predictivos
     print("\n5. Entrenando Modelos Predictivos...")
