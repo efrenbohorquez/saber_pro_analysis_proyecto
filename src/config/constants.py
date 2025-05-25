@@ -14,11 +14,13 @@ PROCESSED_DATA_DIR = DATA_DIR / "processed"
 DOCS_DIR = ROOT_DIR / "docs"
 FIGURES_DIR = DOCS_DIR / "figures"
 REPORTS_DIR = DOCS_DIR / "reports"
+MODELS_DIR = PROCESSED_DATA_DIR / "models"
 
 # Asegurar que los directorios existan
 os.makedirs(PROCESSED_DATA_DIR, exist_ok=True)
 os.makedirs(FIGURES_DIR, exist_ok=True)
 os.makedirs(REPORTS_DIR, exist_ok=True)
+os.makedirs(MODELS_DIR, exist_ok=True)
 
 # Archivos de datos
 RAW_DATA_FILE = RAW_DATA_DIR / "dataset_dividido_10.csv" # Actualizado para usar el conjunto de datos más pequeño

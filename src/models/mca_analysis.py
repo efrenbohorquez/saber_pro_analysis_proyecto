@@ -41,23 +41,25 @@ def prepare_categorical_data(df, variables):
     X = df[variables].copy()
     
     # Convertir variables numéricas a categóricas si es necesario
+    logger.info("Iniciando preparación de datos categóricos para MCA.")
     for col in X.columns:
+        logger.debug(f"Procesando columna para MCA: {col}")
         if X[col].dtype.kind in 'ifc':  # integer, float, complex
             try:
-                # Determinar cuántos valores únicos hay (excluyendo NaN)
                 num_unique = X[col].nunique(dropna=True)
-                
-                # Si hay pocos valores únicos, usar cut en lugar de qcut
-                if num_unique <= 5:
+                logger.debug(f"Columna '{col}' es numérica con {num_unique} valores únicos.")
+                if num_unique <= 5: # Si pocos valores únicos, tratar como categórica directamente
                     X[col] = X[col].astype('category')
-                    # Ya es categórica con pocos valores, no necesita discretización
+                    logger.info(f"Columna '{col}' convertida a 'category' directamente.")
                 else:
-                    # Discretizar en 5 categorías o menos si hay pocos valores únicos
-                    n_bins = min(5, max(2, num_unique - 1))
+                    n_bins = min(5, max(2, num_unique - 1)) # Asegurar al menos 2 bins
                     X[col] = pd.qcut(X[col], n_bins, labels=[f'{col}_Q{i+1}' for i in range(n_bins)], duplicates='drop')
-            except Exception as e:
-                print(f"Error al procesar columna {col}: {e}")
-                # Si falla la discretización, convertir a categórica directamente
+                    logger.info(f"Columna '{col}' discretizada en {n_bins} bins usando qcut. Nuevas categorías: {X[col].cat.categories.tolist()}")
+            except ValueError as ve:
+                logger.warning(f"Error de ValueError al discretizar columna '{col}': {ve}. Se convertirá a string.", exc_info=True)
+                X[col] = X[col].astype('str') # Fallback si qcut falla
+            except Exception as e: # Captura más general por si acaso
+                logger.error(f"Error inesperado al procesar columna numérica '{col}': {e}. Se convertirá a string.", exc_info=True)
                 X[col] = X[col].astype('str')
         
         # Manejar valores faltantes antes de convertir a categórico
@@ -95,35 +97,55 @@ def perform_mca(df, variables, n_components=5):
             - explained_inertia: Proporción de inercia explicada por cada componente
     """
     # Preparar datos categóricos
+    logger.info(f"Iniciando MCA con n_components={n_components} para variables: {variables}")
     X = prepare_categorical_data(df, variables)
+    if X is None or X.empty:
+        logger.error("La preparación de datos categóricos no devolvió datos válidos. Abortando MCA.")
+        return None, None, None
+    logger.info(f"Forma de los datos preparados para MCA (X): {X.shape}")
     
     # Realizar MCA
-    mca = prince.MCA(
-        n_components=n_components,
-        n_iter=10,
-        copy=True,
-        check_input=True,
-        engine='sklearn',  # Cambiado de 'auto' a 'sklearn' para compatibilidad
-        random_state=RANDOM_STATE
-    )
-    
-    # Ajustar modelo
-    mca = mca.fit(X)
-    
-    # Transformar datos
-    X_mca = mca.transform(X)
-    
-    # Calcular la inercia explicada manualmente
-    # En versiones recientes de Prince, eigenvalues_ contiene los valores propios
-    if hasattr(mca, 'eigenvalues_'):
-        total_inertia = sum(mca.eigenvalues_)
-        explained_inertia = [val/total_inertia for val in mca.eigenvalues_]
-    else:
-        # Si no hay eigenvalues_, crear una lista de valores aproximados
-        explained_inertia = [1.0/n_components] * n_components
-        print("Advertencia: No se pudo calcular la inercia explicada real, usando valores aproximados.")
-    
-    return mca, X_mca, explained_inertia
+    try:
+        mca = prince.MCA(
+            n_components=n_components,
+            n_iter=10,
+            copy=True,
+            check_input=True,
+            engine='sklearn',
+            random_state=RANDOM_STATE
+        )
+        
+        logger.debug("Ajustando modelo MCA...")
+        mca = mca.fit(X)
+        logger.info("Modelo MCA ajustado.")
+        
+        logger.debug("Transformando datos con modelo MCA...")
+        X_mca = mca.transform(X)
+        logger.info(f"Datos transformados con MCA. Forma de X_mca: {X_mca.shape}")
+        
+        # Calcular la inercia explicada
+        explained_inertia = []
+        if hasattr(mca, 'eigenvalues_') and mca.eigenvalues_ is not None:
+            total_inertia = sum(mca.eigenvalues_)
+            if total_inertia > 0:
+                explained_inertia = [val/total_inertia for val in mca.eigenvalues_]
+                logger.info(f"Inercia explicada por cada componente: {explained_inertia}")
+                logger.info(f"Inercia explicada acumulada: {np.cumsum(explained_inertia).tolist()}")
+            else:
+                logger.warning("Inercia total es cero, no se puede calcular la proporción de inercia explicada.")
+                explained_inertia = [0.0] * n_components # O alguna otra indicación de error/valor por defecto
+        else:
+            logger.warning("Atributo 'eigenvalues_' no encontrado o es None en el objeto MCA. Usando inercia aproximada.")
+            explained_inertia = [1.0/n_components if n_components > 0 else 0.0] * n_components
+        
+        return mca, X_mca, explained_inertia
+        
+    except (ValueError, TypeError) as e: # Errores comunes de scikit-learn/prince con datos inadecuados
+        logger.error(f"Error de ValueError/TypeError durante MCA fit/transform: {e}", exc_info=True)
+        return None, None, None
+    except Exception as e: # Captura general para otros errores de la librería Prince
+        logger.error(f"Error inesperado durante la ejecución de MCA: {e}", exc_info=True)
+        return None, None, None
 
 def plot_mca_scree(explained_inertia, output_file=None):
     """
@@ -172,8 +194,11 @@ def plot_mca_scree(explained_inertia, output_file=None):
     
     # Guardar si se especifica ruta
     if output_file:
-        plt.savefig(output_file, dpi=FIGURE_DPI, format=FIGURE_FORMAT, bbox_inches='tight')
-        print(f"Gráfico guardado en {output_file}")
+        try:
+            plt.savefig(output_file, dpi=FIGURE_DPI, format=FIGURE_FORMAT, bbox_inches='tight')
+            logger.info(f"MCA scree plot guardado en: {output_file}")
+        except (IOError, OSError) as e:
+            logger.error(f"Error al guardar MCA scree plot en {output_file}: {e}", exc_info=True)
     
     return fig
 
@@ -190,46 +215,42 @@ def plot_mca_factor_map(mca, explained_inertia, output_file=None, n_categories=3
     Returns:
         matplotlib.figure.Figure: Objeto figura con el gráfico.
     """
+    logger.info("Generando mapa factorial MCA.")
+    coords = None
     try:
-        # Usar el método column_coordinates para obtener las coordenadas en lugar del atributo
-        if hasattr(mca, 'column_coordinates'):
-            # Crear un DataFrame dummy para llamar al método
-            # Esto es necesario porque column_coordinates es un método que requiere datos
-            # Usamos los mismos datos originales
-            from pandas import get_dummies
-            
-            # Obtener el número de variables originales
-            if hasattr(mca, '_n_rows'):  # Intentar obtener la dimensión original
-                n_rows = mca._n_rows
-                dummy_X = pd.DataFrame({'dummy': [0] * n_rows})
-            else:
-                # Si no podemos obtener las dimensiones originales, crear un DataFrame pequeño
-                dummy_X = pd.DataFrame({'dummy': [0] * 10})
-            
-            try:
-                # Intentar obtener coordenadas usando el método
-                coords = mca.column_coordinates(dummy_X)
-            except Exception as e:
-                print(f"Error al llamar column_coordinates: {e}")
-                # Como último recurso, crear coordenadas sintéticas
-                coords = pd.DataFrame({
-                    0: np.random.rand(10),
-                    1: np.random.rand(10)
-                }, index=[f'Categoría {i}' for i in range(10)])
-                print("Se han generado coordenadas sintéticas para el gráfico")
-        else:
-            # Si no existe el método, crear un DataFrame vacío
-            print("No se encontró el método column_coordinates en el objeto MCA")
-            return plt.figure(figsize=FIGURE_SIZE)
-        
+        if not hasattr(mca, 'column_coordinates_'):
+            logger.warning("El objeto MCA no tiene el atributo 'column_coordinates_'. No se puede generar el mapa factorial.")
+            # Intentar acceder a eigenvalues para verificar si el modelo está ajustado, si no, es un problema mayor.
+            if not hasattr(mca, 'eigenvalues_'):
+                 logger.error("El objeto MCA parece no estar ajustado correctamente (sin eigenvalues_).")
+            return None # Devuelve None si no se puede generar el gráfico
+
+        coords = mca.column_coordinates_
+        logger.debug(f"Coordenadas de columnas obtenidas. Forma: {coords.shape if coords is not None else 'None'}")
+
+        if coords is None: # Doble chequeo por si acaso
+             logger.error("mca.column_coordinates_ devolvió None. No se puede generar el mapa factorial.")
+             return None
+
         # Limitar número de categorías si es necesario
         if n_categories is not None and n_categories < len(coords):
-            # Tomar una muestra aleatoria de categorías
-            coords = coords.sample(n=n_categories)
-    except Exception as e:
-        print(f"Error al obtener coordenadas para el mapa factorial: {e}")
-        return plt.figure(figsize=FIGURE_SIZE)
+            logger.info(f"Limitando el número de categorías en el mapa factorial a {n_categories}.")
+            try:
+                coords = coords.sample(n=n_categories, random_state=RANDOM_STATE)
+            except ValueError as ve: # Si n_categories es mayor que la población
+                logger.warning(f"No se pudo muestrear {n_categories} categorías (total: {len(coords)}): {ve}. Usando todas las categorías.", exc_info=True)
+        
+    except AttributeError as ae:
+        logger.error(f"Error de atributo al acceder a coordenadas/eigenvalues en el objeto MCA: {ae}", exc_info=True)
+        return None
+    except Exception as e: # Captura general para otros errores inesperados
+        logger.error(f"Error inesperado al obtener/procesar coordenadas para el mapa factorial: {e}", exc_info=True)
+        return None # Devuelve None si hay un error crítico
     
+    if coords is None or coords.empty:
+        logger.warning("No hay coordenadas de categorías para graficar en el mapa factorial. Skipping.")
+        return None
+
     # Crear figura
     fig, ax = plt.subplots(figsize=FIGURE_SIZE)
     
@@ -265,8 +286,16 @@ def plot_mca_factor_map(mca, explained_inertia, output_file=None, n_categories=3
     
     # Guardar si se especifica ruta
     if output_file:
-        plt.savefig(output_file, dpi=FIGURE_DPI, format=FIGURE_FORMAT, bbox_inches='tight')
-        print(f"Gráfico guardado en {output_file}")
+        try:
+            plt.savefig(output_file, dpi=FIGURE_DPI, format=FIGURE_FORMAT, bbox_inches='tight')
+            logger.info(f"MCA factor map guardado en: {output_file}")
+        except (IOError, OSError) as e:
+            logger.error(f"Error al guardar MCA factor map en {output_file}: {e}", exc_info=True)
+        try:
+            plt.savefig(output_file, dpi=FIGURE_DPI, format=FIGURE_FORMAT, bbox_inches='tight')
+            logger.info(f"MCA individuals plot guardado en: {output_file}")
+        except (IOError, OSError) as e:
+            logger.error(f"Error al guardar MCA individuals plot en {output_file}: {e}", exc_info=True)
     
     return fig
 
@@ -387,49 +416,98 @@ def mca_socioeconomic(df):
     # Filtrar solo las variables que existen en el DataFrame
     socioeconomic_vars = [var for var in socioeconomic_vars if var in df.columns]
     
+    logger.info("Iniciando MCA sobre variables socioeconómicas.")
+    logger.debug(f"Variables socioeconómicas para MCA: {socioeconomic_vars}")
+    
     # Realizar MCA
-    mca, X_mca, explained_inertia = perform_mca(df, socioeconomic_vars)
-    
+    mca_results = perform_mca(df, socioeconomic_vars)
+    if mca_results is None or mca_results[0] is None:
+        logger.error("Falló la ejecución de perform_mca. No se pueden generar gráficos ni guardar resultados.")
+        return None, None, None
+    mca, X_mca, explained_inertia = mca_results
+    logger.info("MCA principal completado.")
+
     # Generar y guardar gráficos
-    os.makedirs(FIGURES_DIR, exist_ok=True)
-    
-    # Scree plot
-    scree_file = FIGURES_DIR / 'mca_socioeconomic_scree.png'
-    plot_mca_scree(explained_inertia, output_file=scree_file)
-    
-    # Mapa factorial
-    factor_map_file = FIGURES_DIR / 'mca_socioeconomic_factor_map.png'
-    plot_mca_factor_map(mca, explained_inertia, output_file=factor_map_file)
-    
-    # Gráfico de individuos coloreados por estrato
-    if 'FAMI_ESTRATOVIVIENDA' in df.columns:
-        individuals_file = FIGURES_DIR / 'mca_socioeconomic_individuals_by_strata.png'
-        plot_mca_individuals(X_mca, df, color_var='FAMI_ESTRATOVIVIENDA', output_file=individuals_file)
-    
-    # Gráfico de individuos coloreados por rendimiento académico
-    if 'RA_NIVEL' in df.columns:
-        individuals_ra_file = FIGURES_DIR / 'mca_socioeconomic_individuals_by_ra.png'
-        plot_mca_individuals(X_mca, df, color_var='RA_NIVEL', output_file=individuals_ra_file)
-    
+    try:
+        os.makedirs(FIGURES_DIR, exist_ok=True)
+        logger.info(f"Directorio de figuras asegurado/creado: {FIGURES_DIR}")
+
+        if explained_inertia is not None and len(explained_inertia) > 0:
+            scree_file = FIGURES_DIR / 'mca_socioeconomic_scree.png'
+            logger.info(f"Generando scree plot para MCA socioeconómico, guardando en {scree_file}")
+            plot_mca_scree(explained_inertia, output_file=scree_file)
+        else:
+            logger.warning("No se generará el scree plot de MCA debido a que explained_inertia no está disponible.")
+
+        if mca is not None and explained_inertia is not None and len(explained_inertia) >= 2:
+            factor_map_file = FIGURES_DIR / 'mca_socioeconomic_factor_map.png'
+            logger.info(f"Generando mapa factorial para MCA socioeconómico, guardando en {factor_map_file}")
+            plot_mca_factor_map(mca, explained_inertia, output_file=factor_map_file)
+        else:
+            logger.warning("No se generará el mapa factorial de MCA debido a que el modelo MCA o explained_inertia (con al menos 2 componentes) no están disponibles.")
+
+        if X_mca is not None and 'FAMI_ESTRATOVIVIENDA' in df.columns:
+            individuals_file = FIGURES_DIR / 'mca_socioeconomic_individuals_by_strata.png'
+            logger.info(f"Generando gráfico de individuos por estrato para MCA socioeconómico, guardando en {individuals_file}")
+            plot_mca_individuals(X_mca, df, color_var='FAMI_ESTRATOVIVIENDA', output_file=individuals_file)
+        elif X_mca is None:
+             logger.warning("No se generará el gráfico de individuos por estrato porque X_mca no está disponible.")
+        else:
+            logger.warning("Columna 'FAMI_ESTRATOVIVIENDA' no encontrada, no se generará el gráfico de individuos por estrato.")
+            
+        if X_mca is not None and 'RA_NIVEL' in df.columns:
+            individuals_ra_file = FIGURES_DIR / 'mca_socioeconomic_individuals_by_ra.png'
+            logger.info(f"Generando gráfico de individuos por RA_NIVEL para MCA socioeconómico, guardando en {individuals_ra_file}")
+            plot_mca_individuals(X_mca, df, color_var='RA_NIVEL', output_file=individuals_ra_file)
+        elif X_mca is None:
+             logger.warning("No se generará el gráfico de individuos por RA_NIVEL porque X_mca no está disponible.")
+        else:
+            logger.warning("Columna 'RA_NIVEL' no encontrada, no se generará el gráfico de individuos por RA_NIVEL.")
+            
+    except Exception as e:
+        logger.error(f"Error durante la generación o guardado de gráficos MCA: {e}", exc_info=True)
+
     # Guardar coordenadas en el DataFrame original
-    df_mca = df.copy()
-    for i in range(X_mca.shape[1]):
-        df_mca[f'MCA_SOCIOECONOMIC_{i+1}'] = X_mca.iloc[:, i]
-    
-    # Guardar resultados
-    mca_results_file = PROCESSED_DATA_DIR / 'mca_socioeconomic_results.csv'
-    df_mca.to_csv(mca_results_file, index=False)
-    print(f"Resultados de MCA guardados en {mca_results_file}")
-    
+    if X_mca is not None:
+        try:
+            df_mca = df.copy()
+            for i in range(X_mca.shape[1]):
+                df_mca[f'MCA_SOCIOECONOMIC_{i+1}'] = X_mca.iloc[:, i]
+            
+            mca_results_file = PROCESSED_DATA_DIR / 'mca_socioeconomic_results.csv'
+            df_mca.to_csv(mca_results_file, index=False)
+            logger.info(f"Resultados de MCA (coordenadas) guardados en {mca_results_file}")
+        except (IOError, OSError) as e:
+            logger.error(f"Error de E/S al guardar los resultados de MCA en {mca_results_file}: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Error inesperado al guardar los resultados de MCA: {e}", exc_info=True)
+    else:
+        logger.warning("X_mca es None, no se guardarán los resultados de MCA.")
+        
+    logger.info("Análisis MCA sobre variables socioeconómicas finalizado.")
     return mca, X_mca, explained_inertia
 
 if __name__ == "__main__":
+    # Configuración básica de logging para pruebas
+    logging.basicConfig(
+        level=logging.INFO, 
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler("mca_analysis_test.log"),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    logger.info("Ejecutando mca_analysis.py como script principal para prueba.")
     # Importar módulo de carga de datos
-    from src.data.data_loader import get_data
+    from src.data.data_loader import get_data # Movido aquí para que el logger de este módulo esté configurado
     
     # Cargar datos
+    logger.info("Cargando datos para la prueba de MCA...")
     df = get_data()
     
     # Realizar MCA sobre variables socioeconómicas
     if df is not None:
+        logger.info("Datos cargados, procediendo con mca_socioeconomic.")
         mca_socioeconomic(df)
+    else:
+        logger.error("No se pudieron cargar los datos para la prueba de MCA.")

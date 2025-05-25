@@ -13,6 +13,11 @@ from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 import sys
 from pathlib import Path
 import os
+import joblib # Import joblib
+import logging
+
+# Configurar logger
+logger = logging.getLogger(__name__)
 
 # Agregar el directorio raíz al path para importar módulos del proyecto
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
@@ -20,6 +25,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from src.config.constants import (
     PROCESSED_DATA_DIR,
     FIGURES_DIR,
+    MODELS_DIR, # Import MODELS_DIR
     FIGURE_SIZE,
     FIGURE_DPI,
     FIGURE_FORMAT,
@@ -115,16 +121,19 @@ def train_ridge_regression(X_train, y_train, X_test, y_test):
     """
     # Definir grid de hiperparámetros
     param_grid = {'alpha': [0.01, 0.1, 1.0, 10.0, 100.0]}
+    logger.debug(f"Grid de parámetros para Ridge: {param_grid}, CV=5")
     
     # Buscar mejores hiperparámetros
     grid_search = GridSearchCV(
         Ridge(random_state=RANDOM_STATE),
         param_grid,
         cv=5,
-        scoring='neg_mean_squared_error'
+        scoring='neg_mean_squared_error',
+        n_jobs=-1 # Usar todos los cores
     )
     
     grid_search.fit(X_train, y_train)
+    logger.info(f"Mejores parámetros para Ridge: {grid_search.best_params_}")
     
     # Obtener mejor modelo
     model = grid_search.best_estimator_
@@ -157,16 +166,19 @@ def train_lasso_regression(X_train, y_train, X_test, y_test):
     """
     # Definir grid de hiperparámetros
     param_grid = {'alpha': [0.01, 0.1, 1.0, 10.0, 100.0]}
-    
+    logger.debug(f"Grid de parámetros para Lasso: {param_grid}, CV=5")
+        
     # Buscar mejores hiperparámetros
     grid_search = GridSearchCV(
         Lasso(random_state=RANDOM_STATE),
         param_grid,
         cv=5,
-        scoring='neg_mean_squared_error'
+        scoring='neg_mean_squared_error',
+        n_jobs=-1 # Usar todos los cores
     )
     
     grid_search.fit(X_train, y_train)
+    logger.info(f"Mejores parámetros para Lasso: {grid_search.best_params_}")
     
     # Obtener mejor modelo
     model = grid_search.best_estimator_
@@ -203,6 +215,7 @@ def train_random_forest(X_train, y_train, X_test, y_test):
         'max_depth': [None, 10, 20, 30],
         'min_samples_split': [2, 5, 10]
     }
+    logger.debug(f"Grid de parámetros para RandomForest: {param_grid}, CV=3 (en muestra si aplica)")
     
     # Buscar mejores hiperparámetros (con una muestra pequeña para eficiencia)
     if X_train.shape[0] > 1000:
@@ -225,9 +238,10 @@ def train_random_forest(X_train, y_train, X_test, y_test):
     # Entrenar modelo final con mejores hiperparámetros
     model = RandomForestRegressor(
         **grid_search.best_params_,
-        random_state=RANDOM_STATE
+        random_state=RANDOM_STATE,
+        n_jobs=-1 # Usar todos los cores para el modelo final también
     )
-    
+    logger.info(f"Entrenando RandomForest final con parámetros: {grid_search.best_params_}")
     model.fit(X_train, y_train)
     
     # Predecir
@@ -518,7 +532,9 @@ def predict_academic_performance(df):
         dict: Diccionario con modelos entrenados y métricas.
     """
     # Definir variable objetivo
+    logger.info("Iniciando predicción de rendimiento académico.")
     target_var = 'MOD_RAZONA_CUANTITAT_PUNT'  # Puntaje en razonamiento cuantitativo
+    logger.info(f"Variable objetivo: {target_var}")
     
     # Definir variables predictoras (socioeconómicas)
     predictor_vars = [
@@ -537,25 +553,50 @@ def predict_academic_performance(df):
     predictor_vars = [var for var in predictor_vars if var in df.columns]
     
     # Preparar datos
-    X, y, X_train, X_test, y_train, y_test = prepare_predictive_data(df, target_var, predictor_vars)
+    logger.info("Preparando datos para modelos predictivos...")
+    prep_data_result = prepare_predictive_data(df, target_var, predictor_vars)
     
-    if X is None:
+    if prep_data_result is None or prep_data_result[0] is None:
+        logger.error("Falló la preparación de datos. Abortando predicción.")
         return None
+    X, y, X_train, X_test, y_train, y_test = prep_data_result
+    logger.info(f"Datos preparados. X_train: {X_train.shape}, X_test: {X_test.shape}")
     
-    # Crear directorio para figuras
+    # Crear directorios para figuras y modelos si no existen
     os.makedirs(FIGURES_DIR, exist_ok=True)
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    logger.info(f"Directorios de figuras y modelos asegurados: {FIGURES_DIR}, {MODELS_DIR}")
     
     # Entrenar modelos
     models = {}
+    model_predictions = {}
+
+    # --- Regresión Lineal ---
+    model_name = "Regresión Lineal"
+    model_path = MODELS_DIR / "linear_regression_model.joblib"
+    logger.info(f"--- {model_name} ---")
+    if os.path.exists(model_path):
+        logger.info(f"Cargando modelo existente desde {model_path}")
+        lr_model = joblib.load(model_path)
+        lr_pred = lr_model.predict(X_test)
+        lr_metrics = {
+            'r2': r2_score(y_test, lr_pred),
+            'rmse': np.sqrt(mean_squared_error(y_test, lr_pred)),
+            'mae': mean_absolute_error(y_test, lr_pred)
+        }
+    else:
+        logger.info(f"Entrenando nuevo modelo {model_name}...")
+        lr_model, lr_pred, lr_metrics = train_linear_regression(X_train, y_train, X_test, y_test)
+        logger.info(f"Guardando modelo {model_name} en {model_path}")
+        joblib.dump(lr_model, model_path)
     
-    # Regresión lineal
-    print("Entrenando modelo de regresión lineal...")
-    lr_model, lr_pred, lr_metrics = train_linear_regression(X_train, y_train, X_test, y_test)
-    models['Regresión Lineal'] = (lr_model, lr_pred, lr_metrics)
-    
+    models[model_name] = (lr_model, lr_pred, lr_metrics) # Guardar métricas originales
+    model_predictions[f'Pred_{model_name.replace(" ", "_")}'] = lr_pred
+    logger.info(f"{model_name} - R2: {lr_metrics['r2']:.4f}, RMSE: {lr_metrics['rmse']:.4f}, MAE: {lr_metrics['mae']:.4f}")
+
     # Graficar importancia de variables
     lr_importance_file = FIGURES_DIR / 'lr_feature_importance.png'
-    plot_feature_importance(lr_model, X.columns, output_file=lr_importance_file)
+    plot_feature_importance(lr_model, X.columns, output_file=lr_importance_file) # X.columns son los feature names
     
     # Graficar predicción vs. real
     lr_pred_file = FIGURES_DIR / 'lr_prediction_vs_actual.png'
@@ -564,27 +605,85 @@ def predict_academic_performance(df):
     # Graficar residuos
     lr_residuals_file = FIGURES_DIR / 'lr_residuals.png'
     plot_residuals(y_test, lr_pred, output_file=lr_residuals_file)
+
+    # --- Ridge ---
+    model_name = "Ridge"
+    model_path = MODELS_DIR / "ridge_model.joblib"
+    logger.info(f"--- {model_name} ---")
+    if os.path.exists(model_path):
+        logger.info(f"Cargando modelo existente desde {model_path}")
+        ridge_model = joblib.load(model_path)
+        ridge_pred = ridge_model.predict(X_test)
+        ridge_metrics = {
+            'r2': r2_score(y_test, ridge_pred),
+            'rmse': np.sqrt(mean_squared_error(y_test, ridge_pred)),
+            'mae': mean_absolute_error(y_test, ridge_pred),
+            'best_alpha': ridge_model.alpha # Asumiendo que el alpha se guarda
+        }
+    else:
+        logger.info(f"Entrenando nuevo modelo {model_name}...")
+        ridge_model, ridge_pred, ridge_metrics = train_ridge_regression(X_train, y_train, X_test, y_test)
+        logger.info(f"Guardando modelo {model_name} en {model_path}")
+        joblib.dump(ridge_model, model_path)
+        
+    models[model_name] = (ridge_model, ridge_pred, ridge_metrics)
+    model_predictions[f'Pred_{model_name.replace(" ", "_")}'] = ridge_pred
+    logger.info(f"{model_name} - R2: {ridge_metrics['r2']:.4f}, RMSE: {ridge_metrics['rmse']:.4f}, MAE: {ridge_metrics['mae']:.4f}, Alpha: {ridge_metrics.get('best_alpha', 'N/A')}")
+
+    # --- Lasso ---
+    model_name = "Lasso"
+    model_path = MODELS_DIR / "lasso_model.joblib"
+    logger.info(f"--- {model_name} ---")
+    if os.path.exists(model_path):
+        logger.info(f"Cargando modelo existente desde {model_path}")
+        lasso_model = joblib.load(model_path)
+        lasso_pred = lasso_model.predict(X_test)
+        lasso_metrics = {
+            'r2': r2_score(y_test, lasso_pred),
+            'rmse': np.sqrt(mean_squared_error(y_test, lasso_pred)),
+            'mae': mean_absolute_error(y_test, lasso_pred),
+            'best_alpha': lasso_model.alpha # Asumiendo que el alpha se guarda
+        }
+    else:
+        logger.info(f"Entrenando nuevo modelo {model_name}...")
+        lasso_model, lasso_pred, lasso_metrics = train_lasso_regression(X_train, y_train, X_test, y_test)
+        logger.info(f"Guardando modelo {model_name} en {model_path}")
+        joblib.dump(lasso_model, model_path)
+
+    models[model_name] = (lasso_model, lasso_pred, lasso_metrics)
+    model_predictions[f'Pred_{model_name.replace(" ", "_")}'] = lasso_pred
+    logger.info(f"{model_name} - R2: {lasso_metrics['r2']:.4f}, RMSE: {lasso_metrics['rmse']:.4f}, MAE: {lasso_metrics['mae']:.4f}, Alpha: {lasso_metrics.get('best_alpha', 'N/A')}")
     
-    # Ridge
-    print("Entrenando modelo de regresión Ridge...")
-    ridge_model, ridge_pred, ridge_metrics = train_ridge_regression(X_train, y_train, X_test, y_test)
-    models['Ridge'] = (ridge_model, ridge_pred, ridge_metrics)
+    # --- Random Forest ---
+    model_name = "Random Forest"
+    model_path = MODELS_DIR / "random_forest_model.joblib"
+    logger.info(f"--- {model_name} ---")
+    if os.path.exists(model_path):
+        logger.info(f"Cargando modelo existente desde {model_path}")
+        rf_model = joblib.load(model_path)
+        rf_pred = rf_model.predict(X_test)
+        rf_metrics = {
+            'r2': r2_score(y_test, rf_pred),
+            'rmse': np.sqrt(mean_squared_error(y_test, rf_pred)),
+            'mae': mean_absolute_error(y_test, rf_pred),
+            'best_params': rf_model.get_params() # Guardar todos los params
+        }
+    else:
+        logger.info(f"Entrenando nuevo modelo {model_name}...")
+        rf_model, rf_pred, rf_metrics = train_random_forest(X_train, y_train, X_test, y_test)
+        logger.info(f"Guardando modelo {model_name} en {model_path}")
+        joblib.dump(rf_model, model_path)
+
+    models[model_name] = (rf_model, rf_pred, rf_metrics)
+    model_predictions[f'Pred_{model_name.replace(" ", "_")}'] = rf_pred
+    logger.info(f"{model_name} - R2: {rf_metrics['r2']:.4f}, RMSE: {rf_metrics['rmse']:.4f}, MAE: {rf_metrics['mae']:.4f}")
+    logger.info(f"Mejores parámetros para {model_name}: {rf_metrics.get('best_params', 'N/A')}")
     
-    # Lasso
-    print("Entrenando modelo de regresión Lasso...")
-    lasso_model, lasso_pred, lasso_metrics = train_lasso_regression(X_train, y_train, X_test, y_test)
-    models['Lasso'] = (lasso_model, lasso_pred, lasso_metrics)
-    
-    # Random Forest
-    print("Entrenando modelo de Random Forest...")
-    rf_model, rf_pred, rf_metrics = train_random_forest(X_train, y_train, X_test, y_test)
-    models['Random Forest'] = (rf_model, rf_pred, rf_metrics)
-    
-    # Graficar importancia de variables
+    # Graficar importancia de variables para Random Forest
     rf_importance_file = FIGURES_DIR / 'rf_feature_importance.png'
     plot_feature_importance(rf_model, X.columns, output_file=rf_importance_file)
     
-    # Graficar predicción vs. real
+    # Graficar predicción vs. real para Random Forest
     rf_pred_file = FIGURES_DIR / 'rf_prediction_vs_actual.png'
     plot_prediction_vs_actual(y_test, rf_pred, output_file=rf_pred_file)
     
@@ -592,33 +691,53 @@ def predict_academic_performance(df):
     comparison_file = FIGURES_DIR / 'model_comparison.png'
     _, comparison_df = compare_models(models, X_test, y_test, output_file=comparison_file)
     
-    # Guardar resultados
-    comparison_csv = PROCESSED_DATA_DIR / 'model_comparison.csv'
-    comparison_df.to_csv(comparison_csv, index=False)
-    print(f"Comparación de modelos guardada en {comparison_csv}")
+    # Guardar resultados de comparación
+    comparison_csv = PROCESSED_DATA_DIR / 'model_comparison_metrics.csv'
+    try:
+        comparison_df.to_csv(comparison_csv, index=False)
+        logger.info(f"Comparación de métricas de modelos guardada en {comparison_csv}")
+    except (IOError, OSError) as e:
+        logger.error(f"Error al guardar la comparación de modelos en {comparison_csv}: {e}", exc_info=True)
     
-    # Guardar predicciones
-    predictions = pd.DataFrame({
-        'Real': y_test,
-        'Pred_LR': models['Regresión Lineal'][1],
-        'Pred_Ridge': models['Ridge'][1],
-        'Pred_Lasso': models['Lasso'][1],
-        'Pred_RF': models['Random Forest'][1]
-    })
+    # Guardar todas las predicciones
+    predictions_df_data = {'Real': y_test.values} # Usar .values para evitar problemas de índice
+    for model_key, (_, preds, _) in models.items():
+        model_pred_col_name = f'Pred_{model_key.replace(" ", "_")}'
+        predictions_df_data[model_pred_col_name] = preds
+        
+    predictions_df = pd.DataFrame(predictions_df_data, index=y_test.index) # Mantener índice original de y_test
     
-    predictions_file = PROCESSED_DATA_DIR / 'predictions.csv'
-    predictions.to_csv(predictions_file, index=False)
-    print(f"Predicciones guardadas en {predictions_file}")
+    predictions_file = PROCESSED_DATA_DIR / 'all_model_predictions.csv'
+    try:
+        predictions_df.to_csv(predictions_file, index=True) # Guardar con índice para posible alineación posterior
+        logger.info(f"Todas las predicciones de modelos guardadas en {predictions_file}")
+    except (IOError, OSError) as e:
+        logger.error(f"Error al guardar las predicciones en {predictions_file}: {e}", exc_info=True)
     
+    logger.info("Predicción de rendimiento académico completada.")
     return models
 
 if __name__ == "__main__":
+    # Configuración básica de logging para pruebas
+    logging.basicConfig(
+        level=logging.INFO, 
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler("predictive_models_test.log"),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    logger.info("Ejecutando predictive_models.py como script principal para prueba.")
     # Importar módulo de carga de datos
-    from src.data.data_loader import get_data
+    from src.data.data_loader import get_data # Movido aquí para que el logger de este módulo esté configurado
     
     # Cargar datos
+    logger.info("Cargando datos para la prueba de modelos predictivos...")
     df = get_data()
     
     # Entrenar modelos predictivos
     if df is not None:
+        logger.info("Datos cargados, procediendo con predict_academic_performance.")
         predict_academic_performance(df)
+    else:
+        logger.error("No se pudieron cargar los datos para la prueba de modelos predictivos.")

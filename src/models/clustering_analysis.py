@@ -12,6 +12,11 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 import sys
 from pathlib import Path
 import os
+import logging
+import joblib # Import joblib
+
+# Configurar logger
+logger = logging.getLogger(__name__)
 
 # Agregar el directorio raíz al path para importar módulos del proyecto
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
@@ -19,6 +24,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from src.config.constants import (
     PROCESSED_DATA_DIR,
     FIGURES_DIR,
+    MODELS_DIR, # Import MODELS_DIR
     FIGURE_SIZE,
     FIGURE_DPI,
     FIGURE_FORMAT,
@@ -425,12 +431,40 @@ def cluster_socioeconomic_academic(df, sample_size=2000, max_clusters=6):
     # Seleccionar solo las variables numéricas existentes en todo el conjunto de datos
     X_train = df_sample[cluster_vars].select_dtypes(include=['number']).fillna(0)
     
-    # Entrenar un clasificador
-    clf = RandomForestClassifier(n_estimators=50, random_state=RANDOM_STATE, n_jobs=-1)
-    clf.fit(X_train, labels_sample)
-    
+    # Entrenar o cargar el clasificador para propagar etiquetas
+    classifier_model_path = MODELS_DIR / "cluster_label_classifier.joblib"
+    clf = None
+    if os.path.exists(classifier_model_path):
+        try:
+            logger.info(f"Cargando clasificador de etiquetas de cluster existente desde {classifier_model_path}")
+            clf = joblib.load(classifier_model_path)
+        except Exception as e:
+            logger.error(f"Error al cargar el clasificador de etiquetas de cluster desde {classifier_model_path}: {e}. Se entrenará uno nuevo.", exc_info=True)
+            clf = None # Asegurar que se entrene uno nuevo
+
+    if clf is None:
+        logger.info("Entrenando nuevo clasificador RandomForest para propagación de etiquetas de cluster...")
+        clf = RandomForestClassifier(n_estimators=50, random_state=RANDOM_STATE, n_jobs=-1)
+        try:
+            clf.fit(X_train, labels_sample)
+            logger.info("Clasificador RandomForest entrenado.")
+            try:
+                os.makedirs(MODELS_DIR, exist_ok=True) # Asegurar que el directorio de modelos exista
+                joblib.dump(clf, classifier_model_path)
+                logger.info(f"Clasificador RandomForest guardado en {classifier_model_path}")
+            except Exception as e:
+                logger.error(f"Error al guardar el clasificador RandomForest en {classifier_model_path}: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Error al entrenar el clasificador RandomForest para propagación de etiquetas: {e}", exc_info=True)
+            # No se puede continuar si el clasificador no se entrena
+            return model, labels_sample, X_scaled # Devuelve resultados del clustering en la muestra
+            
+    if clf is None: # Doble chequeo por si el entrenamiento falló y no se retornó antes
+        logger.error("El clasificador RandomForest no está disponible. No se pueden propagar las etiquetas al conjunto completo.")
+        return model, labels_sample, X_scaled
+
     # Aplicar el clasificador a todo el conjunto de datos en lotes para evitar problemas de memoria
-    print(f"Aplicando modelo a todos los datos ({df_full.shape[0]} filas) en lotes")
+    logger.info(f"Aplicando modelo clasificador a todos los datos ({df_full.shape[0]} filas) en lotes")
     batch_size = 10000  # Procesar en lotes de 10,000 filas
     all_labels = []
     
@@ -466,11 +500,26 @@ def cluster_socioeconomic_academic(df, sample_size=2000, max_clusters=6):
 
 if __name__ == "__main__":
     # Importar módulo de carga de datos
-    from src.data.data_loader import get_data
+    from src.data.data_loader import get_data # Movido aquí para que el logger de este módulo esté configurado
+    
+    # Configuración básica de logging para pruebas
+    logging.basicConfig(
+        level=logging.INFO, 
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler("clustering_analysis_test.log"),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    logger.info("Ejecutando clustering_analysis.py como script principal para prueba.")
     
     # Cargar datos
+    logger.info("Cargando datos para la prueba de clustering...")
     df = get_data()
     
     # Realizar clustering
     if df is not None:
+        logger.info("Datos cargados, procediendo con cluster_socioeconomic_academic.")
         cluster_socioeconomic_academic(df)
+    else:
+        logger.error("No se pudieron cargar los datos para la prueba de clustering.")

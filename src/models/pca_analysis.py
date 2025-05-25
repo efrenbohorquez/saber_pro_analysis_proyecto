@@ -11,6 +11,10 @@ from sklearn.preprocessing import StandardScaler
 import sys
 import os
 from pathlib import Path
+import logging
+
+# Configurar logger
+logger = logging.getLogger(__name__)
 
 # Agregar el directorio raíz al path para importar módulos del proyecto
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
@@ -44,30 +48,69 @@ def perform_pca(df, variables, n_components=None, scale=True):
             - explained_variance_ratio: Proporción de varianza explicada por cada componente
             - loadings: Cargas factoriales de cada variable en cada componente
     """
-    # Seleccionar solo las variables numéricas
-    X = df[variables].select_dtypes(include=['number'])
+    logger.info(f"Iniciando PCA para variables: {variables}. Componentes solicitados: {n_components}, Scale: {scale}")
+    try:
+        # Seleccionar solo las variables numéricas
+        X = df[variables].select_dtypes(include=['number'])
+        if X.empty:
+            logger.error("No se encontraron variables numéricas válidas o las variables especificadas no existen.")
+            return None, None, None, None
+    except KeyError as e:
+        logger.error(f"Error de clave al seleccionar variables para PCA: {e}. Verifica que las columnas existan en el DataFrame.", exc_info=True)
+        return None, None, None, None
     
+    logger.debug(f"Forma de X después de la selección de variables y antes de fillna: {X.shape}")
     # Manejar valores faltantes
-    X = X.fillna(X.mean())
-    
+    try:
+        X = X.fillna(X.mean())
+        logger.info(f"Valores faltantes imputados con la media. Forma de X: {X.shape}")
+    except Exception as e: # Si .mean() falla (e.g. todas las columnas son NaNs)
+        logger.error(f"Error al imputar NaNs con la media: {e}", exc_info=True)
+        return None, None, None, None
+
     # Estandarizar si es necesario
+    X_scaled = None
     if scale:
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
+        try:
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+            logger.info(f"Datos estandarizados. Forma de X_scaled: {X_scaled.shape}")
+        except ValueError as e:
+            logger.error(f"Error durante la estandarización de datos (StandardScaler): {e}. Puede ser debido a datos no adecuados (e.g., varianza cero).", exc_info=True)
+            return None, None, None, None
     else:
         X_scaled = X.values
+        logger.info("Estandarización no aplicada. Usando valores originales.")
     
     # Determinar número de componentes si no se especifica
     if n_components is None:
-        n_components = min(len(X.columns), N_COMPONENTS_PCA)
+        n_components = min(X.shape[1], N_COMPONENTS_PCA) # Usar X.shape[1] en lugar de X.columns para evitar error si X es numpy array
+        logger.info(f"Número de componentes para PCA determinado automáticamente: {n_components}")
     
     # Realizar PCA
-    pca = PCA(n_components=n_components, random_state=RANDOM_STATE)
-    X_pca = pca.fit_transform(X_scaled)
-    
+    try:
+        pca = PCA(n_components=n_components, random_state=RANDOM_STATE)
+        X_pca = pca.fit_transform(X_scaled)
+        logger.info(f"PCA realizado. Forma de X_pca (datos transformados): {X_pca.shape}")
+        logger.info(f"Varianza explicada por cada componente: {pca.explained_variance_ratio_}")
+        logger.info(f"Varianza explicada acumulada: {np.cumsum(pca.explained_variance_ratio_)}")
+    except ValueError as e:
+        logger.error(f"Error durante PCA.fit_transform: {e}. Puede ser debido a datos no adecuados.", exc_info=True)
+        return None, None, None, None
+    except Exception as e: # Captura general para errores inesperados en PCA
+        logger.error(f"Error inesperado durante PCA: {e}", exc_info=True)
+        return None, None, None, None
+        
     # Calcular cargas factoriales
-    loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
-    
+    try:
+        loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
+        logger.debug(f"Cargas factoriales calculadas. Forma: {loadings.shape}")
+    except Exception as e:
+        logger.error(f"Error al calcular las cargas factoriales: {e}", exc_info=True)
+        # Podríamos devolver None para loadings o un array vacío con forma correcta si es preferible
+        loadings = np.array([[] for _ in range(X_scaled.shape[1])])
+
+
     return pca, X_pca, pca.explained_variance_ratio_, loadings
 
 def plot_scree(explained_variance_ratio, output_file=None):
@@ -120,8 +163,11 @@ def plot_scree(explained_variance_ratio, output_file=None):
     
     # Guardar si se especifica ruta
     if output_file:
-        plt.savefig(output_file, dpi=FIGURE_DPI, format=FIGURE_FORMAT, bbox_inches='tight')
-        print(f"Gráfico guardado en {output_file}")
+        try:
+            plt.savefig(output_file, dpi=FIGURE_DPI, format=FIGURE_FORMAT, bbox_inches='tight')
+            logger.info(f"Gráfico de sedimentación (scree plot) guardado en: {output_file}")
+        except (IOError, OSError) as e:
+            logger.error(f"Error al guardar el gráfico de sedimentación en {output_file}: {e}", exc_info=True)
     
     return fig
 
@@ -140,6 +186,14 @@ def plot_biplot(X_pca, loadings, feature_names, output_file=None, n_features=Non
         matplotlib.figure.Figure: Objeto figura con el gráfico.
     """
     # Seleccionar solo los primeros dos componentes
+    logger.info("Generando Biplot.")
+    if X_pca is None or X_pca.shape[1] < 2:
+        logger.warning("Datos de PCA (X_pca) no tienen suficientes componentes (necesita >= 2) para generar biplot. Skipping.")
+        return None
+    if loadings is None or loadings.shape[1] < 2:
+        logger.warning("Cargas factoriales (loadings) no tienen suficientes componentes (necesita >= 2) para generar biplot. Skipping.")
+        return None
+        
     X_pca_2d = X_pca[:, :2]
     loadings_2d = loadings[:, :2]
     
@@ -204,8 +258,11 @@ def plot_biplot(X_pca, loadings, feature_names, output_file=None, n_features=Non
     
     # Guardar si se especifica ruta
     if output_file:
-        plt.savefig(output_file, dpi=FIGURE_DPI, format=FIGURE_FORMAT, bbox_inches='tight')
-        print(f"Gráfico guardado en {output_file}")
+        try:
+            plt.savefig(output_file, dpi=FIGURE_DPI, format=FIGURE_FORMAT, bbox_inches='tight')
+            logger.info(f"Biplot guardado en: {output_file}")
+        except (IOError, OSError) as e:
+            logger.error(f"Error al guardar el biplot en {output_file}: {e}", exc_info=True)
     
     return fig
 
@@ -256,8 +313,11 @@ def plot_loadings_heatmap(loadings, feature_names, component_names=None, output_
     
     # Guardar si se especifica ruta
     if output_file:
-        plt.savefig(output_file, dpi=FIGURE_DPI, format=FIGURE_FORMAT, bbox_inches='tight')
-        print(f"Gráfico guardado en {output_file}")
+        try:
+            plt.savefig(output_file, dpi=FIGURE_DPI, format=FIGURE_FORMAT, bbox_inches='tight')
+            logger.info(f"Mapa de calor de cargas factoriales guardado en: {output_file}")
+        except (IOError, OSError) as e:
+            logger.error(f"Error al guardar el mapa de calor de cargas factoriales en {output_file}: {e}", exc_info=True)
     
     return fig
 
@@ -269,49 +329,98 @@ def pca_academic_performance(df):
         df (pandas.DataFrame): DataFrame con los datos.
         
     Returns:
-        tuple: (pca_model, X_pca, explained_variance_ratio, loadings, feature_names)
+        tuple: (pca_model, X_pca, explained_variance_ratio, loadings, feature_names) or None if critical error.
     """
+    logger.info("Iniciando PCA sobre variables de rendimiento académico.")
+    
     # Seleccionar variables de rendimiento académico numéricas
-    academic_vars = [var for var in ACADEMIC_VARS if 'PUNT' in var]
+    academic_vars = [var for var in ACADEMIC_VARS if 'PUNT' in var and var in df.columns]
+    if not academic_vars:
+        logger.error("No se encontraron variables académicas de puntaje válidas en el DataFrame. Abortando PCA.")
+        return None, None, None, None, None
+    logger.info(f"Variables académicas seleccionadas para PCA: {academic_vars}")
     
     # Realizar PCA
-    pca, X_pca, explained_variance, loadings = perform_pca(df, academic_vars)
-    
+    try:
+        pca_results = perform_pca(df, academic_vars)
+        if pca_results is None or pca_results[0] is None: # Check if perform_pca itself failed
+            logger.error("La función perform_pca no devolvió resultados válidos.")
+            return None, None, None, None, None
+        pca, X_pca, explained_variance, loadings = pca_results
+        logger.info("PCA realizado exitosamente.")
+    except Exception as e:
+        logger.error(f"Error durante la ejecución de perform_pca: {e}", exc_info=True)
+        return None, None, None, None, None
+
     # Generar y guardar gráficos
-    os.makedirs(FIGURES_DIR, exist_ok=True)
-    
-    # Scree plot
-    scree_file = FIGURES_DIR / 'pca_academic_scree.png'
-    plot_scree(explained_variance, output_file=scree_file)
-    
-    # Biplot
-    biplot_file = FIGURES_DIR / 'pca_academic_biplot.png'
-    plot_biplot(X_pca, loadings, academic_vars, output_file=biplot_file)
-    
-    # Heatmap de cargas
-    heatmap_file = FIGURES_DIR / 'pca_academic_loadings.png'
-    plot_loadings_heatmap(loadings, academic_vars, output_file=heatmap_file)
-    
+    try:
+        os.makedirs(FIGURES_DIR, exist_ok=True)
+        logger.info(f"Directorio de figuras asegurado: {FIGURES_DIR}")
+
+        if explained_variance is not None:
+            scree_file = FIGURES_DIR / 'pca_academic_scree.png'
+            plot_scree(explained_variance, output_file=scree_file)
+        else:
+            logger.warning("No se generó el scree plot porque la varianza explicada no está disponible.")
+
+        if X_pca is not None and loadings is not None:
+            biplot_file = FIGURES_DIR / 'pca_academic_biplot.png'
+            plot_biplot(X_pca, loadings, academic_vars, output_file=biplot_file)
+        else:
+            logger.warning("No se generó el biplot porque X_pca o loadings no están disponibles.")
+
+        if loadings is not None:
+            heatmap_file = FIGURES_DIR / 'pca_academic_loadings.png'
+            plot_loadings_heatmap(loadings, academic_vars, output_file=heatmap_file)
+        else:
+            logger.warning("No se generó el heatmap de cargas porque loadings no están disponibles.")
+            
+    except Exception as e:
+        logger.error(f"Error durante la generación o guardado de gráficos PCA: {e}", exc_info=True)
+
     # Guardar componentes en el DataFrame original
-    df_pca = df.copy()
-    for i in range(X_pca.shape[1]):
-        df_pca[f'PCA_ACADEMIC_{i+1}'] = X_pca[:, i]
-    
-    # Guardar resultados
-    pca_results_file = PROCESSED_DATA_DIR / 'pca_academic_results.csv'
-    df_pca.to_csv(pca_results_file, index=False)
-    print(f"Resultados de PCA guardados en {pca_results_file}")
-    
+    if X_pca is not None:
+        try:
+            df_pca = df.copy()
+            for i in range(X_pca.shape[1]):
+                df_pca[f'PCA_ACADEMIC_{i+1}'] = X_pca[:, i]
+            
+            # Guardar resultados
+            pca_results_file = PROCESSED_DATA_DIR / 'pca_academic_results.csv'
+            df_pca.to_csv(pca_results_file, index=False)
+            logger.info(f"Resultados de PCA (componentes) guardados en {pca_results_file}")
+        except (IOError, OSError) as e:
+            logger.error(f"Error de E/S al guardar los resultados de PCA en {pca_results_file}: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Error inesperado al guardar los componentes PCA en el DataFrame: {e}", exc_info=True)
+    else:
+        logger.warning("No se guardaron los componentes PCA en el DataFrame porque X_pca no está disponible.")
+
+    logger.info("Análisis PCA sobre rendimiento académico finalizado.")
     return pca, X_pca, explained_variance, loadings, academic_vars
 
 if __name__ == "__main__":
+    # Configuración básica de logging para pruebas
+    logging.basicConfig(
+        level=logging.INFO, 
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler("pca_analysis_test.log"), # Para guardar logs en un archivo
+            logging.StreamHandler(sys.stdout) # Para mostrar logs en la consola
+        ]
+    )
+    
+    logger.info("Ejecutando pca_analysis.py como script principal para prueba.")
     # Importar módulo de carga de datos
-    from src.data.data_loader import get_data
-    import os
+    from src.data.data_loader import get_data # Movido aquí para que el logger de este módulo esté configurado
     
     # Cargar datos
+    logger.info("Cargando datos para la prueba de PCA...")
     df = get_data()
     
     # Realizar PCA sobre rendimiento académico
     if df is not None:
+        logger.info("Datos cargados, procediendo con pca_academic_performance.")
         pca_academic_performance(df)
+    else:
+        logger.error("No se pudieron cargar los datos para la prueba de PCA.")
