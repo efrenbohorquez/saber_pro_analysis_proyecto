@@ -1,0 +1,23 @@
+[theme]
+# Configuración de tema para la aplicación
+primaryColor = "#1f77b4"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#262730"
+
+[server]
+# Configuración del servidor para Streamlit Cloud
+headless = true
+runOnSave = true
+port = 8501
+enableCORS = false
+enableXsrfProtection = false
+
+[browser]
+# Configuración del navegador
+gatherUsageStats = false
+
+[logger]
+# Configuración de logging
+level = "info"
+messageFormat = "%(asctime)s %(message)s"

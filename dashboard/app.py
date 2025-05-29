@@ -2,6 +2,7 @@
 Aplicación principal del dashboard en Streamlit para visualizar los resultados del análisis de Saber Pro.
 """
 
+# Importaciones básicas
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -9,13 +10,28 @@ import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
 from plotly.subplots import make_subplots
-import folium
-from streamlit_folium import st_folium, folium_static # Asegurar que folium_static esté importado
 from scipy import stats
 import os
+import sys
 from pathlib import Path
 import joblib  # Para cargar modelos guardados
-import sys # Importar sys
+
+# Manejo de importación de folium y streamlit_folium con fallback
+FOLIUM_AVAILABLE = False
+try:
+    import folium
+    from streamlit_folium import st_folium, folium_static
+    FOLIUM_AVAILABLE = True
+except ImportError as e:
+    st.warning(f"🗺️ Funcionalidades de mapas no disponibles: {e}")
+    st.info("💡 Para habilitar mapas interactivos, instale: pip install folium streamlit-folium")
+    # Definir funciones dummy para evitar errores
+    def st_folium(*args, **kwargs):
+        st.error("streamlit_folium no está disponible")
+        return None
+    def folium_static(*args, **kwargs):
+        st.error("streamlit_folium no está disponible")
+        return None
 
 # Configuración de la plantilla estilo The Economist
 economist_template = go.layout.Template()
@@ -886,7 +902,9 @@ def show_clustering():
         
         if 'CLUSTER' in df_cluster.columns:
             if pca_cols and len(pca_cols) >= 2:
-                # Crear scatter plot de clusters en espacio PCA
+                st.subheader("Visualización de Clusters en Espacio PCA")
+                
+                # Crear scatter plot interactivo
                 fig = px.scatter(
                     df_cluster,
                     x=pca_cols[0],
@@ -897,13 +915,16 @@ def show_clustering():
                         pca_cols[0]: "Componente Principal 1",
                         pca_cols[1]: "Componente Principal 2"
                     },
-                    opacity=0.7
+                    opacity=0.7,
+                    category_orders={"CLUSTER": sorted(df_cluster['CLUSTER'].unique())}
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
             
             if mca_cols and len(mca_cols) >= 2:
-                # Crear scatter plot de clusters en espacio MCA
+                st.subheader("Visualización de Clusters en Espacio MCA")
+                
+                # Crear scatter plot interactivo
                 fig = px.scatter(
                     df_cluster,
                     x=mca_cols[0],
@@ -914,12 +935,9 @@ def show_clustering():
                         mca_cols[0]: "Dimensión 1",
                         mca_cols[1]: "Dimensión 2"
                     },
-                    opacity=0.7
+                    opacity=0.7,
+                    category_orders={"CLUSTER": sorted(df_cluster['CLUSTER'].unique())}
                 )
-                
-                # Añadir líneas de referencia
-                fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
-                fig.add_vline(x=0, line_dash="dash", line_color="gray", opacity=0.5)
                 
                 st.plotly_chart(fig, use_container_width=True)
 
@@ -950,7 +968,7 @@ def show_predictive_models():
         
         # Mostrar tabla de comparación
         if model_comparison is not None:
-            st.write("Métricas de evaluación:")
+            st.write("Métricas de evaluación de modelos:")
             st.dataframe(model_comparison)
         
         st.markdown("""
@@ -970,67 +988,68 @@ def show_predictive_models():
         col1, col2 = st.columns(2)
         
         with col1:
-            # Importancia de variables en regresión lineal
+            # Mostrar importancia de características para regresión lineal
             lr_importance_path = FIGURES_DIR / 'lr_feature_importance.png'
             if os.path.exists(lr_importance_path):
-                st.image(str(lr_importance_path), caption="Importancia de Variables (Regresión Lineal)")
+                st.image(str(lr_importance_path), caption="Importancia de Variables - Regresión Lineal")
             else:
-                st.error("No se encontró el gráfico de importancia de variables para regresión lineal.")
+                st.error("No se encontró el gráfico de importancia para regresión lineal.")
         
         with col2:
-            # Importancia de variables en Random Forest
+            # Mostrar importancia de características para random forest
             rf_importance_path = FIGURES_DIR / 'rf_feature_importance.png'
             if os.path.exists(rf_importance_path):
-                st.image(str(rf_importance_path), caption="Importancia de Variables (Random Forest)")
+                st.image(str(rf_importance_path), caption="Importancia de Variables - Random Forest")
             else:
-                st.error("No se encontró el gráfico de importancia de variables para Random Forest.")
+                st.error("No se encontró el gráfico de importancia para Random Forest.")
         
         st.markdown("""
         **Interpretación:**
         
-        Los gráficos de importancia de variables muestran qué variables tienen mayor influencia en las predicciones:
-        - En la regresión lineal, se muestran los coeficientes absolutos de cada variable.
-        - En Random Forest, se muestra la importancia calculada a partir de la reducción en la impureza.
+        Los gráficos de importancia de variables muestran qué características tienen mayor influencia en las predicciones:
+        - Las barras representan la importancia relativa de cada variable.
+        - Variables con mayor importancia (barras más largas) tienen mayor impacto en la predicción.
+        - La comparación entre modelos muestra si diferentes algoritmos utilizan las variables de manera distinta.
         
-        Variables con mayor importancia tienen mayor poder predictivo sobre el rendimiento académico.
+        Las variables socioeconómicas más importantes pueden considerarse como factores claves que influyen en el rendimiento académico.
         """)
     
     with tab3:
         st.subheader("Predicciones vs. Valores Reales")
         
-        # Mostrar gráfico de predicciones vs. reales para regresión lineal
+        # Mostrar predicciones vs reales para regresión lineal
         lr_pred_path = FIGURES_DIR / 'lr_prediction_vs_actual.png'
         if os.path.exists(lr_pred_path):
-            st.image(str(lr_pred_path), caption="Predicciones vs. Valores Reales (Regresión Lineal)")
+            st.image(str(lr_pred_path), caption="Predicciones vs. Valores Reales - Regresión Lineal")
         else:
             st.error("No se encontró el gráfico de predicciones para regresión lineal.")
         
-        # Mostrar gráfico de residuos
+        # Mostrar residuos para regresión lineal
         lr_residuals_path = FIGURES_DIR / 'lr_residuals.png'
         if os.path.exists(lr_residuals_path):
-            st.image(str(lr_residuals_path), caption="Análisis de Residuos (Regresión Lineal)")
+            st.image(str(lr_residuals_path), caption="Residuos - Regresión Lineal")
         else:
             st.error("No se encontró el gráfico de residuos para regresión lineal.")
         
-        # Mostrar gráfico de predicciones vs. reales para Random Forest
+        # Mostrar predicciones vs reales para Random Forest
         rf_pred_path = FIGURES_DIR / 'rf_prediction_vs_actual.png'
         if os.path.exists(rf_pred_path):
-            st.image(str(rf_pred_path), caption="Predicciones vs. Valores Reales (Random Forest)")
+            st.image(str(rf_pred_path), caption="Predicciones vs. Valores Reales - Random Forest")
         else:
             st.error("No se encontró el gráfico de predicciones para Random Forest.")
         
         st.markdown("""
         **Interpretación:**
         
-        Los gráficos de predicciones vs. valores reales muestran qué tan bien se ajustan los modelos a los datos:
+        Los gráficos de predicciones vs. valores reales muestran cuán bien el modelo predice los valores:
         - Puntos cercanos a la línea diagonal indican predicciones precisas.
-        - Puntos alejados de la línea indican errores de predicción.
-        - El R² y RMSE proporcionan medidas cuantitativas de la calidad del ajuste.
+        - Puntos por encima de la línea indican sobreestimación.
+        - Puntos por debajo de la línea indican subestimación.
+        - Un patrón aleatorio alrededor de la línea sugiere un buen ajuste del modelo.
         
-        El análisis de residuos muestra:
-        - Si los residuos están distribuidos aleatoriamente alrededor de cero (deseable).
-        - Si hay patrones en los residuos que sugieran problemas con el modelo.
-        - Si los residuos siguen una distribución normal (deseable).
+        El gráfico de residuos muestra las diferencias entre las predicciones y los valores reales:
+        - Un buen modelo debe mostrar residuos distribuidos aleatoriamente alrededor de cero.
+        - Patrones claros en los residuos sugieren que el modelo no captura alguna estructura importante en los datos.
         """)
 
 # Función para la página de análisis geoespacial
@@ -1038,175 +1057,177 @@ def show_geospatial():
     """Muestra la página de análisis geoespacial."""
     st.header("🗺️ Análisis Geoespacial")
     
-    df_geo = load_data()
-    dept_stats = load_department_stats()
+    # Verificar si folium está disponible
+    if not FOLIUM_AVAILABLE:
+        st.warning("🗺️ Las funcionalidades de mapas interactivos no están disponibles en este entorno.")
+        st.info("💡 Los mapas requieren las librerías folium y streamlit-folium.")
+        
+        # Mostrar solo los gráficos estáticos disponibles
+        st.subheader("Gráficos de Análisis Geoespacial Disponibles")
+        
+        # Mostrar gráfico de rendimiento por departamento si existe
+        performance_path = FIGURES_DIR / 'performance_by_department.png'
+        if os.path.exists(performance_path):
+            st.image(str(performance_path), caption="Rendimiento Académico por Departamento")
+        
+        # Mostrar distribución de estratos por departamento si existe
+        strata_dist_path = FIGURES_DIR / 'strata_by_department.png'
+        if os.path.exists(strata_dist_path):
+            st.image(str(strata_dist_path), caption="Distribución de Estratos por Departamento")
+        
+        if not os.path.exists(performance_path) and not os.path.exists(strata_dist_path):
+            st.info("📊 Para generar gráficos geoespaciales, ejecute primero el análisis completo en un entorno local.")
+        
+        return
     
-    if df_geo is None or dept_stats is None:
-        st.warning("No se encontraron datos geoespaciales. Por favor ejecute primero el análisis completo.")
+    df_geo = load_department_stats()
+    if df_geo is None:
+        st.warning("No se encontraron resultados geoespaciales. Por favor ejecute primero el análisis completo.")
         return
     
     # Pestañas para diferentes aspectos del análisis geoespacial
-    tab1, tab2, tab3 = st.tabs(["Mapas Coropléticos", "Mapas de Calor", "Análisis por Departamento"])
+    tab1, tab2, tab3 = st.tabs(["Mapas de Rendimiento", "Distribución por Departamento", "Comparación Regional"])
     
     with tab1:
-        st.subheader("Mapas Coropléticos")
+        st.subheader("Mapas de Colombia")
         
-        # Seleccionar mapa a mostrar
-        map_options = [
-            "Rendimiento en Razonamiento Cuantitativo",
-            "Rendimiento en Lectura Crítica",
-            "Cantidad de Estudiantes"
-        ]
+        # Seleccionar variable para mapa
+        map_options = ["Cantidad de Estudiantes", "Razonamiento Cuantitativo", "Lectura Crítica", "Estrato"]
+        selected_map = st.selectbox("Seleccione el mapa a visualizar:", map_options)
         
-        selected_map = st.selectbox("Seleccione un mapa:", map_options)
+        # Mostrar mapa correspondiente
+        if selected_map == "Cantidad de Estudiantes":
+            map_path = FIGURES_DIR / 'map_cantidad_estudiantes.html'
+        elif selected_map == "Razonamiento Cuantitativo":
+            map_path = FIGURES_DIR / 'map_razonamiento_cuantitativo.html'
+        elif selected_map == "Lectura Crítica":
+            map_path = FIGURES_DIR / 'map_lectura_critica.html'
+        else:  # Estrato
+            map_path = FIGURES_DIR / 'cluster_map_estrato.html'
         
-        # Determinar archivo HTML correspondiente
-        if selected_map == "Rendimiento en Razonamiento Cuantitativo":
-            map_file = FIGURES_DIR / 'map_razonamiento_cuantitativo.html'
-            map_title = "Rendimiento en Razonamiento Cuantitativo por Departamento"
-        elif selected_map == "Rendimiento en Lectura Crítica":
-            map_file = FIGURES_DIR / 'map_lectura_critica.html'
-            map_title = "Rendimiento en Lectura Crítica por Departamento"
-        else:  # Cantidad de Estudiantes
-            map_file = FIGURES_DIR / 'map_cantidad_estudiantes.html'
-            map_title = "Cantidad de Estudiantes por Departamento"
-        
-        # Mostrar mapa si existe
-        if os.path.exists(map_file):
-            # Cargar HTML del mapa
-            with open(map_file, 'r') as f:
-                html_data = f.read()
-            
-            # Mostrar mapa
-            st.components.v1.html(html_data, height=600)
+        # Mostrar el mapa con folium_static
+        if os.path.exists(map_path):
+            st.components.v1.html(open(map_path, 'r', encoding='utf-8').read(), height=500)
         else:
-            # Alternativa: crear mapa en tiempo real
-            st.error(f"No se encontró el mapa {map_file}. Generando mapa alternativo...")
-            
-            # Crear mapa básico centrado en Colombia
-            m = folium.Map(
-                location=[4.5709, -74.2973],
-                zoom_start=6,
-                tiles='CartoDB positron'
-            )
-            
-            # Mostrar mapa
-            st.write(map_title)
-            folium_static(m)
+            st.error(f"No se encontró el mapa {selected_map}.")
+        
+        st.markdown("""
+        **Interpretación:**
+        
+        Los mapas coropletas muestran la distribución geográfica de diferentes variables:
+        - **Cantidad de Estudiantes**: Visualiza el número de estudiantes por departamento.
+        - **Razonamiento Cuantitativo**: Muestra el puntaje promedio en razonamiento cuantitativo por departamento.
+        - **Lectura Crítica**: Muestra el puntaje promedio en lectura crítica por departamento.
+        - **Estrato**: Visualiza el estrato socioeconómico predominante por departamento.
+        
+        Los colores más oscuros generalmente indican valores más altos. Esta visualización permite identificar patrones regionales y desigualdades geográficas.
+        """)
     
     with tab2:
-        st.subheader("Mapas de Calor y Clusters")
+        st.subheader("Distribución por Departamento")
         
-        # Seleccionar tipo de mapa
-        map_type = st.radio("Tipo de mapa:", ["Mapa de Calor", "Mapa de Clusters"])
-        
-        if map_type == "Mapa de Calor":
-            # Mapa de calor de rendimiento
-            heatmap_file = FIGURES_DIR / 'heatmap_rendimiento.html'
-            
-            if os.path.exists(heatmap_file):
-                # Cargar HTML del mapa
-                with open(heatmap_file, 'r') as f:
-                    html_data = f.read()
-                
-                # Mostrar mapa
-                st.write("Mapa de Calor de Rendimiento en Razonamiento Cuantitativo")
-                st.components.v1.html(html_data, height=600)
-            else:
-                st.error("No se encontró el mapa de calor.")
+        # Mostrar heatmap de rendimiento por departamento
+        heatmap_path = FIGURES_DIR / 'heatmap_rendimiento.html'
+        if os.path.exists(heatmap_path):
+            st.components.v1.html(open(heatmap_path, 'r', encoding='utf-8').read(), height=500)
         else:
-            # Mapa de clusters por estrato
-            cluster_file = FIGURES_DIR / 'cluster_map_estrato.html'
-            
-            if os.path.exists(cluster_file):
-                # Cargar HTML del mapa
-                with open(cluster_file, 'r') as f:
-                    html_data = f.read()
-                
-                # Mostrar mapa
-                st.write("Distribución de Estudiantes por Estrato")
-                st.components.v1.html(html_data, height=600)
-            else:
-                st.error("No se encontró el mapa de clusters.")
+            st.error("No se encontró el mapa de calor de rendimiento por departamento.")
+        
+        # Mostrar distribución de estratos por departamento
+        strata_dist_path = FIGURES_DIR / 'strata_by_department.png'
+        if os.path.exists(strata_dist_path):
+            st.image(str(strata_dist_path), caption="Distribución de Estratos por Departamento")
+        else:
+            st.error("No se encontró el gráfico de distribución de estratos por departamento.")
+        
+        st.markdown("""
+        **Interpretación:**
+        
+        El mapa de calor muestra la relación entre departamentos y rendimiento académico:
+        - Colores más cálidos (rojos) indican mejor rendimiento.
+        - Colores más fríos (azules) indican peor rendimiento.
+        - Este mapa permite identificar rápidamente qué departamentos tienen mejor o peor desempeño en las diferentes pruebas.
+        
+        La distribución de estratos por departamento muestra la composición socioeconómica de cada región:
+        - Las barras apiladas muestran la proporción de cada estrato dentro de cada departamento.
+        - Esto permite identificar desigualdades socioeconómicas entre diferentes regiones del país.
+        """)
     
     with tab3:
-        st.subheader("Análisis por Departamento")
+        st.subheader("Comparación Regional")
         
-        col1, col2 = st.columns(2)
+        # Mostrar gráfico de rendimiento por departamento
+        performance_path = FIGURES_DIR / 'performance_by_department.png'
+        if os.path.exists(performance_path):
+            st.image(str(performance_path), caption="Rendimiento Académico por Departamento")
+        else:
+            st.error("No se encontró el gráfico de rendimiento por departamento.")
         
-        with col1:
-            # Rendimiento por departamento
-            performance_dept_path = FIGURES_DIR / 'performance_by_department.png'
-            if os.path.exists(performance_dept_path):
-                st.image(str(performance_dept_path), caption="Rendimiento Académico por Departamento")
-            else:
-                st.error("No se encontró el gráfico de rendimiento por departamento.")
-        
-        with col2:
-            # Distribución de estratos por departamento
-            strata_dept_path = FIGURES_DIR / 'strata_by_department.png'
-            if os.path.exists(strata_dept_path):
-                st.image(str(strata_dept_path), caption="Distribución de Estratos por Departamento")
-            else:
-                st.error("No se encontró el gráfico de distribución de estratos por departamento.")
-        
-        # Tabla de estadísticas por departamento
-        if dept_stats is not None:
-            st.subheader("Estadísticas por Departamento")
+        # Mostrar visualización interactiva si los datos están disponibles
+        if df_geo is not None and 'DEPARTMENT' in df_geo.columns:
+            # Seleccionar variable para visualizar
+            columns = [col for col in df_geo.columns if col not in ['DEPARTMENT', 'geometry']]
             
-            # Ordenar por columna seleccionada
-            sort_column = st.selectbox(
-                "Ordenar por:",
-                ["CANTIDAD_ESTUDIANTES", "MOD_RAZONA_CUANTITAT_PUNT", "MOD_LECTURA_CRITICA_PUNT", "MOD_INGLES_PUNT"]
-            )
-            
-            # Mostrar tabla ordenada
-            st.dataframe(dept_stats.sort_values(sort_column, ascending=False))
-            
-            # Gráfico interactivo
-            st.subheader("Comparación de Rendimiento por Departamento")
-            
-            # Seleccionar departamentos a comparar
-            top_n = st.slider("Mostrar top departamentos:", 5, 20, 10)
-            top_depts = dept_stats.nlargest(top_n, "CANTIDAD_ESTUDIANTES")
-            
-            # Seleccionar variables a comparar
-            y_vars = st.multiselect(
-                "Variables a comparar:",
-                ["MOD_RAZONA_CUANTITAT_PUNT", "MOD_LECTURA_CRITICA_PUNT", "MOD_INGLES_PUNT"],
-                default=["MOD_RAZONA_CUANTITAT_PUNT"]
-            )
-            
-            if y_vars:
-                # Crear gráfico de barras agrupadas
-                fig = go.Figure()
+            if columns:
+                selected_var = st.selectbox(
+                    "Seleccione una variable para comparar entre departamentos:",
+                    columns,
+                    key="geo_var_select"
+                )
                 
-                for var in y_vars:
-                    fig.add_trace(go.Bar(
-                        x=top_depts["DEPARTAMENTO"],
-                        y=top_depts[var],
-                        name=var
-                    ))
+                # Ordenar por la variable seleccionada
+                df_sorted = df_geo.sort_values(by=selected_var)
                 
+                # Crear gráfico de barras
+                fig = px.bar(
+                    df_sorted, 
+                    x='DEPARTMENT',
+                    y=selected_var,
+                    title=f"{selected_var} por Departamento",
+                    color=selected_var,
+                    color_continuous_scale='Viridis',
+                )
+                
+                # Actualizar layout para mejor visualización
                 fig.update_layout(
-                    title="Comparación de Rendimiento por Departamento",
+                    xaxis_tickangle=-45,
                     xaxis_title="Departamento",
-                    yaxis_title="Puntaje Promedio",
-                    barmode='group'
+                    yaxis_title=selected_var
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
+                
+                # Mostrar estadísticas básicas
+                st.subheader(f"Estadísticas de {selected_var}")
+                stats = df_geo[selected_var].describe()
+                
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric("Promedio", f"{stats['mean']:.2f}")
+                
+                with col2:
+                    st.metric("Mediana", f"{stats['50%']:.2f}")
+                
+                with col3:
+                    st.metric("Mínimo", f"{stats['min']:.2f}")
+                
+                with col4:
+                    st.metric("Máximo", f"{stats['max']:.2f}")
+        
+        st.markdown("""
+        **Interpretación:**
+        
+        Estas visualizaciones permiten comparar el rendimiento académico entre departamentos:
+        - Se puede identificar qué departamentos tienen mejor o peor desempeño en las pruebas.
+        - Se pueden explorar posibles relaciones entre el nivel socioeconómico de los departamentos y su rendimiento académico.
+        - Los departamentos con valores atípicos (muy por encima o muy por debajo del promedio) pueden ser objeto de análisis más detallado.
+        """)
 
-# Función principal para ejecutar la aplicación
-def main():
-    """Función principal para ejecutar la aplicación Streamlit."""
-    # Mostrar encabezado
-    show_header()
-    
-    # Menú lateral
-    st.sidebar.title("Navegación")
-    
-    # Opciones de navegación
+# Función principal para mostrar la sección seleccionada
+def show_selected_section():
+    """Muestra la sección seleccionada en la barra lateral."""
+    # Diccionario de páginas disponibles
     pages = {
         "🏠 Inicio": show_home,
         "🔍 Exploración de Datos": show_eda,
@@ -1214,14 +1235,31 @@ def main():
         "🔄 Análisis de Correspondencias Múltiples": show_mca,
         "🔬 Clustering Jerárquico": show_clustering,
         "📈 Modelos Predictivos": show_predictive_models,
-        "🗺️ Análisis Geoespacial": show_geospatial
     }
+    
+    # Agregar análisis geoespacial solo si folium está disponible
+    if FOLIUM_AVAILABLE:
+        pages["🗺️ Análisis Geoespacial"] = show_geospatial
+    else:
+        pages["📊 Análisis Geoespacial (Solo Gráficos)"] = show_geospatial
     
     # Selección de página
     selection = st.sidebar.radio("Ir a:", list(pages.keys()))
     
     # Ejecutar función de la página seleccionada
     pages[selection]()
+
+# Función principal
+def main():
+    """Función principal que controla el flujo del dashboard."""
+    # Mostrar encabezado
+    show_header()
+    
+    # Configuración del sidebar
+    st.sidebar.title("Navegación")
+    
+    # Mostrar sección seleccionada
+    show_selected_section()
     
     # Información adicional en el sidebar
     st.sidebar.markdown("---")
