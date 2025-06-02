@@ -8,6 +8,14 @@ from pathlib import Path
 
 # Directorios principales
 ROOT_DIR = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+# Detectar si estamos en Streamlit Cloud
+STREAMLIT_CLOUD = os.getenv('STREAMLIT_SHARING_MODE') == '1' or '/mount/src/' in str(ROOT_DIR)
+
+if STREAMLIT_CLOUD:
+    # En Streamlit Cloud, usar rutas relativas desde el directorio de la aplicación
+    ROOT_DIR = Path("/mount/src/saber_pro_analysis_proyecto")
+
 DATA_DIR = ROOT_DIR / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"

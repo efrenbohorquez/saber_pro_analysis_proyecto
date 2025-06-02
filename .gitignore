@@ -120,6 +120,9 @@ data/reports/*
 data/raw/*.xlsx
 data/raw/*.csv
 
+# Exception: Include the specific dataset needed for the analysis
+!data/raw/dataset_dividido_10.csv
+
 # OS generated files
 .DS_Store
 .DS_Store?

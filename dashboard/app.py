@@ -115,16 +115,48 @@ st.set_page_config(
 def load_data():
     """Carga los datos procesados."""
     from src.config.constants import RAW_DATA_FILE
+    from src.data.data_loader import load_raw_data
+    import os
     
     try:
-        df = pd.read_csv(RAW_DATA_FILE)
-        st.success(f"Datos cargados exitosamente desde {RAW_DATA_FILE}")
-        return df
-    except FileNotFoundError:
-        st.error(f"No se encontró el archivo de datos en la ruta especificada: {RAW_DATA_FILE}. Por favor, verifique la ruta.")
-        return None
+        # Intentar cargar los datos usando el data_loader que tiene fallbacks
+        df = load_raw_data()
+        if df is not None:
+            st.success(f"✅ Datos cargados exitosamente. Dimensiones: {df.shape}")
+            return df
+        else:
+            # Mostrar información de diagnóstico
+            st.error("❌ No se pudo cargar el archivo de datos.")
+            st.info("📋 **Información de diagnóstico:**")
+            
+            # Mostrar rutas intentadas
+            st.code(f"""
+Ruta configurada: {RAW_DATA_FILE}
+Existe archivo: {os.path.exists(RAW_DATA_FILE)}
+Directorio de trabajo actual: {os.getcwd()}
+""")
+            
+            # Mostrar estructura de directorios disponible
+            try:
+                import pathlib
+                current_dir = pathlib.Path.cwd()
+                st.write("**Estructura de directorios disponible:**")
+                for path in sorted(current_dir.rglob("*.csv")):
+                    if "dataset" in str(path).lower():
+                        st.write(f"  📄 {path}")
+            except:
+                pass
+                
+            st.warning("💡 **Posibles soluciones:**")
+            st.write("1. Asegúrese de que el archivo `dataset_dividido_10.csv` esté en el repositorio")
+            st.write("2. Verifique que el archivo esté en la carpeta `data/raw/`")
+            st.write("3. Si está en Streamlit Cloud, confirme que todos los archivos se subieron correctamente")
+            
+            return None
+            
     except Exception as e:
-        st.error(f"Ocurrió un error al cargar los datos: {e}")
+        st.error(f"❌ Error al cargar los datos: {str(e)}")
+        st.code(f"Error detallado: {type(e).__name__}: {e}")
         return None
 
 @st.cache_data

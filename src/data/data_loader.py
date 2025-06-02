@@ -30,23 +30,41 @@ def load_raw_data():
     Returns:
         pandas.DataFrame: DataFrame con los datos crudos.
     """
-    try:
-        # Determinar la extensión del archivo
-        file_extension = str(RAW_DATA_FILE).lower().split('.')[-1]
-        
-        if file_extension == 'csv':
-            df = pd.read_csv(RAW_DATA_FILE)
-        elif file_extension in ['xlsx', 'xls']:
-            df = pd.read_excel(RAW_DATA_FILE)
-        else:
-            print(f"Formato de archivo no soportado: {file_extension}")
-            return None
-            
-        print(f"Datos cargados exitosamente desde {RAW_DATA_FILE}. Dimensiones: {df.shape}")
-        return df
-    except Exception as e:
-        print(f"Error al cargar los datos: {e}")
-        return None
+    # Lista de posibles ubicaciones del archivo para diferentes entornos
+    possible_paths = [
+        RAW_DATA_FILE,  # Ruta configurada en constants.py
+        Path("data/raw/dataset_dividido_10.csv"),  # Ruta relativa desde el root
+        Path("./data/raw/dataset_dividido_10.csv"),  # Ruta relativa actual
+        Path("../data/raw/dataset_dividido_10.csv"),  # Ruta relativa hacia arriba
+        Path("../../data/raw/dataset_dividido_10.csv"),  # Ruta relativa dos niveles arriba
+    ]
+    
+    # Intentar cargar desde cada ubicación posible
+    for file_path in possible_paths:
+        try:
+            if os.path.exists(file_path):
+                print(f"Intentando cargar desde: {file_path}")
+                
+                # Determinar la extensión del archivo
+                file_extension = str(file_path).lower().split('.')[-1]
+                
+                if file_extension == 'csv':
+                    df = pd.read_csv(file_path)
+                elif file_extension in ['xlsx', 'xls']:
+                    df = pd.read_excel(file_path)
+                else:
+                    continue  # Probar siguiente ruta
+                    
+                print(f"Datos cargados exitosamente desde {file_path}. Dimensiones: {df.shape}")
+                return df
+        except Exception as e:
+            print(f"Error al cargar desde {file_path}: {e}")
+            continue
+    
+    print(f"No se pudo cargar el archivo de datos desde ninguna ubicación:")
+    for path in possible_paths:
+        print(f"  - {path} (existe: {os.path.exists(path)})")
+    return None
 
 def clean_data(df):
     """
