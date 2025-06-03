@@ -56,8 +56,7 @@ def load_raw_data():
         Path("data/raw/dataset_sample.csv"),  # Datos de muestra como fallback
         Path("/mount/src/saber_pro_analysis_proyecto/data/raw/dataset_dividido_10.csv"),  # Streamlit Cloud
     ]
-    
-    # Intentar cargar desde cada ubicación posible
+      # Intentar cargar desde cada ubicación posible
     for file_path in possible_paths:
         try:
             if os.path.exists(file_path):
@@ -87,7 +86,7 @@ def load_raw_data():
                 # Mostrar información sobre el tipo de datos
                 if 'dataset_sample' in str(file_path):
                     print("ℹ️ Usando datos de muestra para demostración")
-                  return df
+                return df
                 
         except Exception as e:
             print(f"❌ Error al cargar desde {file_path}: {e}")
