@@ -226,6 +226,41 @@ def show_home():
     else:
         st.warning(f"No se encontró la imagen del banner en {banner_path}")
     
+    # Información del entorno (útil para diagnóstico)
+    with st.expander("ℹ️ Información del Entorno", expanded=False):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**Entorno de Ejecución:**")
+            
+            # Detectar si estamos en Streamlit Cloud
+            is_cloud = any([
+                os.getenv('STREAMLIT_SHARING_MODE') == '1',
+                '/mount/src/' in str(Path.cwd()),
+                'streamlit.io' in os.getenv('HOSTNAME', ''),
+            ])
+            
+            if is_cloud:
+                st.success("🌐 Streamlit Cloud")
+            else:
+                st.info("💻 Entorno Local")
+            
+            st.write(f"**Directorio actual:** `{Path.cwd()}`")
+            st.write(f"**Folium disponible:** {'✅' if FOLIUM_AVAILABLE else '❌'}")
+        
+        with col2:
+            st.write("**Estado de los Datos:**")
+            df = load_data()
+            if df is not None:
+                st.success(f"✅ Datos cargados ({df.shape[0]:,} registros)")
+                
+                # Verificar si son datos de muestra
+                if df.shape[0] == 1000:  # Tamaño típico de datos de muestra
+                    st.warning("⚠️ Posiblemente usando datos de muestra")
+            else:
+                st.error("❌ Datos no disponibles")
+                st.info("💡 La aplicación puede generar datos de muestra para demostración")
+    
     st.markdown("""
     ## Análisis Multivariante: Relación entre Nivel Socioeconómico y Rendimiento Académico en las Pruebas Saber Pro
     
