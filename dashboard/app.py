@@ -4,6 +4,7 @@ Aplicación principal del dashboard en Streamlit para visualizar los resultados 
 
 # Importaciones básicas
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -23,14 +24,15 @@ try:
     from streamlit_folium import st_folium, folium_static
     FOLIUM_AVAILABLE = True
 except ImportError as e:
-    st.warning(f"🗺️ Funcionalidades de mapas no disponibles: {e}")
-    st.info("💡 Para habilitar mapas interactivos, instale: pip install folium streamlit-folium")
-    # Definir funciones dummy para evitar errores
+    # Solo mostrar advertencias en modo local, no en Streamlit Cloud
+    if 'STREAMLIT_SHARING_MODE' not in os.environ and '/mount/src/' not in str(os.getcwd()):
+        st.warning(f"🗺️ Funcionalidades de mapas no disponibles: {e}")
+        st.info("💡 Para habilitar mapas interactivos, instale: pip install folium streamlit-folium")
+      # Definir funciones dummy para evitar errores
     def st_folium(*args, **kwargs):
-        st.error("streamlit_folium no está disponible")
         return None
+    
     def folium_static(*args, **kwargs):
-        st.error("streamlit_folium no está disponible")
         return None
 
 # Configuración de la plantilla estilo The Economist
@@ -162,47 +164,92 @@ Directorio de trabajo actual: {os.getcwd()}
 @st.cache_data
 def load_pca_results():
     """Carga los resultados del análisis PCA."""
-    try:
-        df = pd.read_csv(PROCESSED_DATA_DIR / "pca_academic_results.csv")
-        return df
-    except FileNotFoundError:
-        return None
+    possible_paths = [
+        PROCESSED_DATA_DIR / "pca_academic_results.csv",
+        Path("data/processed/pca_academic_results.csv"),
+        Path("./data/processed/pca_academic_results.csv"),
+    ]
+    
+    for path in possible_paths:
+        try:
+            if os.path.exists(path):
+                df = pd.read_csv(path)
+                return df
+        except Exception as e:
+            continue
+    return None
 
 @st.cache_data
 def load_mca_results():
     """Carga los resultados del análisis MCA."""
-    try:
-        df = pd.read_csv(PROCESSED_DATA_DIR / "mca_socioeconomic_results.csv")
-        return df
-    except FileNotFoundError:
-        return None
+    possible_paths = [
+        PROCESSED_DATA_DIR / "mca_socioeconomic_results.csv",
+        Path("data/processed/mca_socioeconomic_results.csv"),
+        Path("./data/processed/mca_socioeconomic_results.csv"),
+    ]
+    
+    for path in possible_paths:
+        try:
+            if os.path.exists(path):
+                df = pd.read_csv(path)
+                return df
+        except Exception as e:
+            continue
+    return None
 
 @st.cache_data
 def load_clustering_results():
     """Carga los resultados del clustering."""
-    try:
-        df = pd.read_csv(PROCESSED_DATA_DIR / "clustering_results.csv")
-        return df
-    except FileNotFoundError:
-        return None
+    possible_paths = [
+        PROCESSED_DATA_DIR / "clustering_results.csv",
+        Path("data/processed/clustering_results.csv"),
+        Path("./data/processed/clustering_results.csv"),
+    ]
+    
+    for path in possible_paths:
+        try:
+            if os.path.exists(path):
+                df = pd.read_csv(path)
+                return df
+        except Exception as e:
+            continue
+    return None
 
 @st.cache_data
 def load_department_stats():
     """Carga las estadísticas por departamento."""
-    try:
-        df = pd.read_csv(PROCESSED_DATA_DIR / "department_stats.csv")
-        return df
-    except FileNotFoundError:
-        return None
+    possible_paths = [
+        PROCESSED_DATA_DIR / "department_stats.csv",
+        Path("data/processed/department_stats.csv"),
+        Path("./data/processed/department_stats.csv"),
+    ]
+    
+    for path in possible_paths:
+        try:
+            if os.path.exists(path):
+                df = pd.read_csv(path)
+                return df
+        except Exception as e:
+            continue
+    return None
 
 @st.cache_data
 def load_model_comparison():
     """Carga la comparación de modelos predictivos."""
-    try:
-        df = pd.read_csv(PROCESSED_DATA_DIR / "model_comparison.csv")
-        return df
-    except FileNotFoundError:
-        return None
+    possible_paths = [
+        PROCESSED_DATA_DIR / "model_comparison.csv",
+        Path("data/processed/model_comparison.csv"),
+        Path("./data/processed/model_comparison.csv"),
+    ]
+    
+    for path in possible_paths:
+        try:
+            if os.path.exists(path):
+                df = pd.read_csv(path)
+                return df
+        except Exception as e:
+            continue
+    return None
 
 # Función para mostrar el encabezado
 def show_header():
@@ -287,8 +334,7 @@ def show_home():
     - **Modelos Predictivos**: Predicción del rendimiento académico.
     - **Análisis Geoespacial**: Distribución geográfica de resultados.
     """)
-    
-    # Mostrar algunas estadísticas generales si los datos están disponibles
+      # Mostrar algunas estadísticas generales si los datos están disponibles
     df = load_data()
     if df is not None:
         col1, col2, col3, col4 = st.columns(4)
@@ -299,7 +345,7 @@ def show_home():
         with col2:
             if 'FAMI_ESTRATOVIVIENDA' in df.columns:
                 strata_counts = df['FAMI_ESTRATOVIVIENDA'].value_counts()
-                most_common_strata = strata_counts.index[0]
+                most_common_strata = str(strata_counts.index[0])
                 st.metric("Estrato más común", most_common_strata)
         
         with col3:
@@ -310,7 +356,7 @@ def show_home():
         with col4:
             if 'ESTU_DEPTO_RESIDE' in df.columns:
                 dept_counts = df['ESTU_DEPTO_RESIDE'].value_counts()
-                most_common_dept = dept_counts.index[0]
+                most_common_dept = str(dept_counts.index[0])
                 st.metric("Departamento con más estudiantes", most_common_dept)
 
 # Función para la página de exploración de datos
@@ -1171,10 +1217,9 @@ def show_geospatial():
             map_path = FIGURES_DIR / 'map_lectura_critica.html'
         else:  # Estrato
             map_path = FIGURES_DIR / 'cluster_map_estrato.html'
-        
-        # Mostrar el mapa con folium_static
+          # Mostrar el mapa con components
         if os.path.exists(map_path):
-            st.components.v1.html(open(map_path, 'r', encoding='utf-8').read(), height=500)
+            components.html(open(map_path, 'r', encoding='utf-8').read(), height=500)
         else:
             st.error(f"No se encontró el mapa {selected_map}.")
         
@@ -1192,11 +1237,10 @@ def show_geospatial():
     
     with tab2:
         st.subheader("Distribución por Departamento")
-        
-        # Mostrar heatmap de rendimiento por departamento
+          # Mostrar heatmap de rendimiento por departamento
         heatmap_path = FIGURES_DIR / 'heatmap_rendimiento.html'
         if os.path.exists(heatmap_path):
-            st.components.v1.html(open(heatmap_path, 'r', encoding='utf-8').read(), height=500)
+            components.html(open(heatmap_path, 'r', encoding='utf-8').read(), height=500)
         else:
             st.error("No se encontró el mapa de calor de rendimiento por departamento.")
         
@@ -1350,7 +1394,7 @@ def main():
             run_all_analyses(force_reload=True)
         
         st.sidebar.success("¡Análisis completado! Actualiza las visualizaciones.")
-        st.experimental_rerun()
+        st.rerun()
 
 if __name__ == "__main__":
     main()
