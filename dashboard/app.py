@@ -2,6 +2,21 @@
 Aplicación principal del dashboard en Streamlit para visualizar los resultados del análisis de Saber Pro.
 """
 
+# Inicialización automática para Streamlit Cloud
+try:
+    import sys
+    from pathlib import Path
+    # Agregar directorio padre al path
+    parent_dir = Path(__file__).parent.parent
+    if str(parent_dir) not in sys.path:
+        sys.path.insert(0, str(parent_dir))
+    
+    # Importar inicialización silenciosamente
+    import streamlit_init
+except ImportError:
+    # Si falla la importación, continuar sin problemas
+    pass
+
 # Importaciones básicas
 import streamlit as st
 import streamlit.components.v1 as components
